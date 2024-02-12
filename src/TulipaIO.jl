@@ -1,4 +1,4 @@
-module pipeline
+module TulipaIO
 
 import DataFrames as DF
 import DuckDB: DB, DBInterface, Stmt

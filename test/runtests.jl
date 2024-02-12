@@ -2,7 +2,7 @@ import CSV
 import DataFrames as DF
 import DuckDB: DB, DBInterface
 
-import pipeline
+import TulipaIO
 
 import Test: @test, @testset, @test_throws
 
@@ -17,11 +17,11 @@ end
     con = DBInterface.connect(DB)
 
     df_org = DF.DataFrame(CSV.File(csv_path, header = 2))
-    df_res = pipeline.read_csv(con, csv_path)
+    df_res = TulipaIO.read_csv(con, csv_path)
     @test shape(df_org) == shape(df_res)
 
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
-    df_res = pipeline.read_csv_alt_cols(
+    df_res = TulipaIO.read_csv_alt_cols(
         con,
         csv_path,
         csv_copy,
@@ -38,12 +38,12 @@ end
     con = DBInterface.connect(DB)
 
     df_org = DF.DataFrame(CSV.File(csv_path, header = 2))
-    pipeline.create_tbl(con, "no_assets", csv_path)
+    TulipaIO.create_tbl(con, "no_assets", csv_path)
     df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM no_assets"))
     @test shape(df_org) == shape(df_res)
 
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
-    pipeline.create_alt_tbl(
+    TulipaIO.create_alt_tbl(
         con,
         "no_assets",
         "alt_assets",
