@@ -9,4 +9,5 @@ DuckDB = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
+DataFrames = "1"
 julia = "1.6"
