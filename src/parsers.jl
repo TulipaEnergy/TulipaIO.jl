@@ -17,13 +17,36 @@ end
 
 # ESDL class parsers
 function cost_info(asset)
-    basepath = "/@costInformation/@investmentCosts"
-    val = json_get(asset, "$basepath/@value")
-    unit = Dict(
-        k => json_get(asset, "$basepath/@profileQuantityAndUnit/@$k") for
-        k in (:unit, :perMultiplier, :perUnit)
-    )
-    (val, "$(unit[:unit])/$(unit[:perMultiplier])$(unit[:perUnit])")
+    basepath = [:costInformation, :investmentCosts]
+    cost = json_get(asset, [:costInformation]; default = nothing)
+    if cost == nothing
+        return (nothing, nothing, nothing, nothing)
+    end
+
+    ret = []
+    for cost_type in (:investmentCosts, :variableOperationalAndMaintenanceCosts)
+        !in(cost_type, keys(cost)) && continue
+        val = json_get(cost, [cost_type, :value]; default = nothing)
+        unit = Dict(
+            k => json_get(asset, [basepath..., :profileQuantityAndUnit, k]; default = nothing)
+            for k in (:unit, :perMultiplier, :perUnit)
+        )
+        push!(ret, val, "$(unit[:unit])/$(unit[:perMultiplier])$(unit[:perUnit])")
+    end
+    ret
+end
+
+struct Asset
+    initial_capacity::Float64
+    lifetime::Float64
+    investment_cost::Float64
+    investment_cost_unit::String
+    variable_cost::Float64
+    variable_cost_unit::String
+end
+
+function Asset(asset::JSON3.Object)
+    Asset(get(asset, :power, nothing), get(asset, :technicalLifetime, nothing), cost_info(asset)...)
 end
 
 """
@@ -49,7 +72,7 @@ function flow_from_json(json)
             (
                 asset[:name],
                 json_get(json, to_port[Symbol("\$ref")]; trunc = 2)[:name],
-                cost_info(asset)...,
+                Asset(asset),
             ) for port in asset[:port] if occursin("OutPort", port[:eClass]) for
             to_port in port[:connectedTo]
         ]
@@ -60,6 +83,17 @@ function flow_from_json(json)
     flows
 end
 
+function reduce_unless(fn, itr; init, sentinel)
+    res = init
+    for i in itr
+        res = fn(res, i)
+        if res == sentinel
+            return sentinel
+        end
+    end
+    return res
+end
+
 """
     json_get(json, reference; trunc = 0)
 
@@ -67,14 +101,27 @@ Given a JSON document, find the object pointed to by the reference
 (e.g. "//@<key>.<array_idx>/@<key>"); truncate the last `trunc`
 components of the reference.
 """
-function json_get(json, reference::String; trunc = 0)
+function json_get(json, reference::String; trunc::Int = 0)
     function to_idx(token)
         v = split(token, ".")
+        # JSON is 0-indexed, Julia is 1-indexed
         length(v) > 1 ? [Symbol(v[1]), 1 + parse(Int, v[2])] : [Symbol(v[1])]
     end
     # NOTE: index 2:end because there is a leading '/'
     idx = collect(Iterators.flatten(map(to_idx, split(reference, "/@"))))[2:(end-trunc)]
     reduce(getindex, idx; init = json)
+end
+
+function json_get(json, idcs::Vector{Symbol}; default::Any = nothing)
+    reduce_unless((ret, i) -> get(ret, i, default), idcs; init = json, sentinel = default)
+end
+
+function json_get(json, idcs::Vector{Int}; default::Any = nothing)
+    reduce_unless((ret, i) -> get(ret, i, default), idcs; init = json, sentinel = default)
+end
+
+function json_get(json, idcs::Vector{Union{Int,Symbol}}; default::Any = nothing)
+    reduce_unless((ret, i) -> get(ret, i, default), idcs; init = json, sentinel = default)
 end
 
 """
