@@ -109,18 +109,11 @@ function json_get(json, reference::String; trunc::Int = 0)
     end
     # NOTE: index 2:end because there is a leading '/'
     idx = collect(Iterators.flatten(map(to_idx, split(reference, "/@"))))[2:(end-trunc)]
-    reduce(getindex, idx; init = json)
+    reduce(getindex, idx; init = json) # since $ref is from JSON, assume valid
 end
 
-function json_get(json, idcs::Vector{Symbol}; default::Any = nothing)
-    reduce_unless((ret, i) -> get(ret, i, default), idcs; init = json, sentinel = default)
-end
-
-function json_get(json, idcs::Vector{Int}; default::Any = nothing)
-    reduce_unless((ret, i) -> get(ret, i, default), idcs; init = json, sentinel = default)
-end
-
-function json_get(json, idcs::Vector{Union{Int,Symbol}}; default::Any = nothing)
+# ideally idcs should be typed Vector{Union{Int64,Symbol}}
+function json_get(json, idcs; default::Any = nothing)
     reduce_unless((ret, i) -> get(ret, i, default), idcs; init = json, sentinel = default)
 end
 
