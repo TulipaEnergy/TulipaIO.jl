@@ -49,9 +49,11 @@ end
         @test occursin(csv_path, read_)
         @test TIO.fmt_source(con, tbl_name) == tbl_name
         @test_throws TIO.NeitherTableNorFileError TIO.fmt_source(con, "not-there")
-        msg_re = r"not-there.+"
-        msg_re *= "$con"
-        @test_throws msg_re TIO.fmt_source(con, "not-there")
+        if (VERSION.major >= 1) && (VERSION.minor >= 8)
+            msg_re = r"not-there.+"
+            msg_re *= "$con"
+            @test_throws msg_re TIO.fmt_source(con, "not-there")
+        end
     end
 end
 
@@ -68,7 +70,9 @@ end
         df_res = TIO.create_tbl(con, csv_path; show = true)
         @test shape(df_org) == shape(df_res)
         @test_throws TIO.FileNotFoundError TIO.create_tbl(con, "not-there")
-        @test_throws r"not-there" TIO.create_tbl(con, "not-there")
+        if (VERSION.major >= 1) && (VERSION.minor >= 8)
+            @test_throws r"not-there" TIO.create_tbl(con, "not-there")
+        end
     end
 
     @testset "CSV w/ alternatives -> DataFrame" begin
@@ -195,8 +199,10 @@ end
         # stupid Julia! grow up!
         args = [con, csv_path, df_exp.investable[2:end]]
         @test_throws DimensionMismatch TIO.set_tbl_col(args...; opts...)
-        @test_throws r"Length.+different" TIO.set_tbl_col(args...; opts...)
-        @test_throws r"index.+value" TIO.set_tbl_col(args...; opts...)
+        if (VERSION.major >= 1) && (VERSION.minor >= 8)
+            @test_throws r"Length.+different" TIO.set_tbl_col(args...; opts...)
+            @test_throws r"index.+value" TIO.set_tbl_col(args...; opts...)
+        end
     end
 
     @testset "w/ constant" begin
