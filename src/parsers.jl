@@ -83,12 +83,9 @@ function merge(args...; names = [])
         msg = "Following fields have conflicting values:\n"
         # filter fields with errors for all arguments
         data = map(t -> map(f -> getfield(t, f), errs), args) |> collect |> x -> hcat(errs, x...)
-        if length(names) == 0
-            println("no header")
-        end
         hdr = ["fields", ((length(names) == 0) ? (1:length(args)) : names)...]
         msg *= pretty_table(String, data; header = hdr)
-        throw(DomainError(msg))
+        error(msg)
     end
     res
 end
@@ -143,6 +140,7 @@ end
 struct Asset
     initial_capacity::Union{Float64,Nothing}
     lifetime::Union{Float64,Nothing}
+    initial_storage_level::Union{Float64,Nothing}
     investment_cost::Union{Float64,Nothing}
     investment_cost_unit::Union{String,Nothing}
     variable_cost::Union{Float64,Nothing}
@@ -151,7 +149,12 @@ end
 
 # constructor to call different parsers to determine the fields
 function Asset(asset::JSON3.Object)
-    Asset(get(asset, :power, nothing), get(asset, :technicalLifetime, nothing), cost_info(asset)...)
+    Asset(
+        get(asset, :power, nothing),             # initial_capacity
+        get(asset, :technicalLifetime, nothing), # lifetime
+        get(asset, :fillLevel, nothing),         # initial_storage_level
+        cost_info(asset)...,                     # *_cost{,_unit}
+    )
 end
 
 # entry point for the parser

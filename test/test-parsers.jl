@@ -36,10 +36,13 @@ import JSON3
         @test res == d1
         res = merge(d1, d2)
         @test res == d1
-        @test_throws DomainError merge(d1, d3) # error when conflicting values
+        @test_throws ErrorException merge(d1, d3) # error when conflicting values
         # error message lists fields w/ conflicting values
         @test_throws r"bar.+\n.+baz" merge(d1, d2, d3)
         @test_throws r"foo.+\n.+bar.+\n.+baz" merge(d1, d2, d4)
+        # error message column names
+        @test_throws r"fields.+1.+2" merge(d2, d4) # default: sequence
+        @test_throws r"fields.+bla.+dibla" merge(d2, d4; names = ["bla", "dibla"])
     end
 end
 
