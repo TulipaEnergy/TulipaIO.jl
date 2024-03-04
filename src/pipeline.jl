@@ -1,6 +1,6 @@
-import DataFrames as DF
-import DuckDB: DB, DBInterface, Stmt
-import Printf: format, Format
+using DataFrames: DataFrames as DF
+using DuckDB: DB, DBInterface, Stmt
+using Printf: format, Format
 
 function sprintf(fmt::String, args...)
     format(Format(fmt), args...)
