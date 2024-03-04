@@ -1,6 +1,7 @@
 import JSON3
 import HTTP
 import DataFrames as DF
+import Dates: DateTime
 
 # NOTE: this doesn't actually do anything smart like batching
 # or keeping an open connection, it just remembers the connection
@@ -12,22 +13,24 @@ struct InfluxClient
     path::String
     username::String
     password::String
+    InfluxClient(
+        host::String,
+        database::String,
+        port::Int = 8086,
+        path::String = "query",
+        username::String = "",
+        password::String = "",
+    ) = new(host, database, port, username, password, path)
 end
 
-function InfluxClient(
-    host::String,
-    database::String,
-    port::Int = 8086,
-    path::String = "query",
-    username::String = "",
-    password::String = "",
+function query(
+    client::InfluxClient,
+    measurement::String,
+    time_range_start::DateTime,
+    time_range_end::DateTime,
 )
-    InfluxClient(host, database, port, username, password, path)
-end
-
-function query(client::InfluxClient, measurement::String)
     # NOTE: the query is not escaped, so no untrusted input should be accepted here
-    db_query = "SELECT time, value FROM \"$measurement\""
+    db_query = "SELECT time, value FROM \"$measurement\" WHERE time >= $time_range_start AND time <= $time_range_end"
     url_params = ["db" => client.database, "q" => db_query]
     uri = HTTP.URI(;
         scheme = "http",
