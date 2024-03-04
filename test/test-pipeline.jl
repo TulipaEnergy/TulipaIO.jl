@@ -11,12 +11,12 @@ end
     con = DBInterface.connect(DB)
 
     df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
-    df_res = TulipaIO.read_csv(con, csv_path)
+    df_res = TulipaIO.read_file(con, csv_path)
     @test shape(df_org) == shape(df_res)
 
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     df_res =
-        TulipaIO.read_csv_alt_cols(con, csv_path, csv_copy; on = ["name"], cols = ["investable"])
+        TulipaIO.read_file_replace_cols(con, csv_path, csv_copy; on = ["name"], cols = ["investable"])
     df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
     @test df_exp.investable == df_res.investable
     @test df_org.investable != df_res.investable
@@ -27,16 +27,16 @@ end
     con = DBInterface.connect(DB)
 
     df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
-    TulipaIO.create_tbl(con, "no_assets", csv_path)
+    TulipaIO.create_tbl(con, csv_path; name = "no_assets")
     df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM no_assets"))
     @test shape(df_org) == shape(df_res)
 
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
-    TulipaIO.create_alt_tbl(
+    TulipaIO.create_tbl_variant(
         con,
         "no_assets",
-        "alt_assets",
         csv_copy;
+        variant = "alt_assets",
         on = ["name"],
         cols = ["investable"],
     )
