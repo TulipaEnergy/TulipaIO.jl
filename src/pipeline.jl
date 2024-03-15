@@ -14,7 +14,9 @@ function check_file(source::String)
 end
 
 function check_tbl(con::DB, source::String)
-    tbls = DBInterface.execute(con, "SHOW TABLES").tbl[:name]
+    res = DBInterface.execute(con, "SHOW TABLES")
+    @show res
+    tbls = res.tbl[:name]
     source in tbls
 end
 
