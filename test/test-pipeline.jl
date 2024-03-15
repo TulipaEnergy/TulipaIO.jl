@@ -15,8 +15,14 @@ end
     @test shape(df_org) == shape(df_res)
 
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
-    df_res =
-        TulipaIO.create_tbl(con, csv_path, csv_copy; on = ["name"], cols = ["investable"], show = true)
+    df_res = TulipaIO.create_tbl(
+        con,
+        csv_path,
+        csv_copy;
+        on = ["name"],
+        cols = ["investable"],
+        show = true,
+    )
     df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
     @test df_exp.investable == df_res.investable
     @test df_org.investable != df_res.investable
