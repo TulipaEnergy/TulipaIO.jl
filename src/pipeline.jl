@@ -100,8 +100,6 @@ function create_tbl(
     return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
 
-end
-
 # TODO:
 # - filter rows (where clause)
 # - dataframe as data source
