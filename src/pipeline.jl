@@ -1,115 +1,103 @@
-import DataFrames as DF
-import DuckDB: DB, DBInterface, Stmt
-import Printf: format, Format
+using DataFrames: DataFrames as DF
+using DuckDB: DB, DBInterface, Stmt
 
-function sprintf(fmt::String, args...)
-    format(Format(fmt), args...)
-end
+using .FmtSQL: fmt_join, fmt_read, fmt_select
 
-function fmt_opts(source::String; opts...)
-    _src = '?' in source ? "$source" : "'$(source)'"
-    join(["$(_src)"; [join(p, "=") for p in opts]], ", ")
-end
+export create_tbl
 
-function reader(source::String)
-    _, ext = splitext(source)
-    if ext in (".csv", ".parquet", ".json")
-        return "read_$(ext[2:end])_auto"
-    elseif '?' in source
-        # FIXME: how to support other file formats?
-        return "read_csv_auto"
-    else
-        error("$(ext[2:end]): unsupported input file '$(source)'")
-    end
-end
-
-function fmt_query(source::String; opts...)
-    sprintf("SELECT * FROM %s(%s)", reader(source), fmt_opts(source; opts...))
-end
-
-function fmt_join(subquery1::String, subquery2::String; on::Vector{String}, cols::Vector{String})
-    exclude = join(cols, ", ")
-    include = join(map(c -> "t2.$c", cols), ", ")
-    select_ = "SELECT t1.* EXCLUDE ($exclude), $include"
-
-    join_on = join(map(c -> "t1.$c = t2.$c", on), " AND ")
-    from_ = "FROM $subquery1 t1 LEFT JOIN $subquery2 t2 ON ($join_on)"
-
-    "$(select_)\n$(from_)"
-end
+# default options (for now)
+_read_opts = pairs((header = true, skip = 1))
 
 function check_file(source::String)
     # FIXME: handle globs
-    isfile(source) || throw(ArgumentError("$(source): is not a regular file"))
-    source
+    isfile(source)
 end
 
+function check_tbl(con::DB, source::String)
+    res = DBInterface.execute(con, "SHOW TABLES")
+    @show res
+    tbls = res.tbl[:name]
+    source in tbls
+end
+
+function fmt_source(con::DB, source::String)
+    if check_tbl(con, source)
+        return source
+    elseif check_file(source)
+        return fmt_read(source; _read_opts...)
+    else
+        throw(NeitherTableNorFileError(con, source))
+    end
+end
+
+## User facing functions below
+
+# TODO: prepared statements; not used for now
 struct Store
     con::DB
     read_csv::Stmt
 
     function Store(store::String)
         con = DBInterface.connect(DB, store)
-        query = fmt_query("(?)"; header = true, skip = 1)
+        query = fmt_select("(?)"; header = true, skip = 1)
         stmt = DBInterface.prepare(con, query)
         new(con, stmt)
     end
 end
 
 Store() = Store(":memory:")
-
-function read_csv(con::DB, source::String)
-    check_file(source)
-    query = fmt_query("(?)"; header = true, skip = 1)
-    res = DBInterface.execute(con, query, [source])
-    return DF.DataFrame(res)
-end
-
-function read_csv_alt_cols(
-    con::DB,
-    source1::String,
-    source2::String;
-    on::Vector{String},
-    cols::Vector{String},
-)
-    check_file(source1)
-    check_file(source2)
-    subquery = sprintf("read_csv_auto(%s)", fmt_opts("(?)"; header = true, skip = 1))
-    query = fmt_join(subquery, subquery; on = on, cols = cols)
-    res = DBInterface.execute(con, query, [source1, source2])
-    return DF.DataFrame(res)
-end
+DEFAULT = Store()
 
 function tmp_tbl_name(source::String)
     name, _ = replace(splitext(basename(source)), r"[ ()\[\]{}\\+,.]+" => "_")
     "t_$(name)"
 end
 
-function create_tbl(con::DB, name::String, source::String; tmp::Bool = false)
-    check_file(source)
-    query = fmt_query(source; header = true, skip = 1)
-    TEMP = tmp ? "TEMP" : ""
-    DBInterface.execute(con, "CREATE $TEMP TABLE $name AS $query")
+# TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
+
+function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show::Bool)
+    if (length(name) == 0) && !show
+        tmp = true
+        name = tmp_tbl_name(source)
+    end
+
+    if length(name) > 0
+        DBInterface.execute(con, "CREATE $(tmp ? "TEMP" : "") TABLE $name AS $query")
+        return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
+    else # only show
+        res = DBInterface.execute(con, query)
+        return DF.DataFrame(res)
+    end
 end
 
-function create_alt_tbl(
+function create_tbl(
     con::DB,
-    ref::String,
-    alt::String,
     source::String;
+    name::String = "",
+    tmp::Bool = false,
+    show::Bool = false,
+)
+    check_file(source) ? true : throw(FileNotFoundError(source))
+    query = fmt_select(source; _read_opts...)
+
+    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+end
+
+function create_tbl(
+    con::DB,
+    base_source::String,
+    alt_source::String;
+    variant::String = "",
     on::Vector{String},
     cols::Vector{String},
+    fill::Union{Bool,Vector::Any} = true,
     tmp::Bool = false,
+    show::Bool = false,
 )
-    check_file(source)
-    TEMP = tmp ? "TEMP" : ""
-    # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS"
-    create_ = "CREATE $TEMP TABLE $alt AS"
+    sources = [fmt_source(con, src) for src in (base_source, alt_source)]
+    query = fmt_join(sources...; on = on, cols = cols, fill = fill)
 
-    subquery = sprintf("%s(%s)", reader(source), fmt_opts(source; header = true, skip = 1))
-    query = fmt_join(ref, subquery; on = on, cols = cols)
-
-    DBInterface.execute(con, "$(create_)\n$(query)")
+    return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
 
 # TODO:
