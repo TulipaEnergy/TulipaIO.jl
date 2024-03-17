@@ -8,6 +8,12 @@ function shape(df::DF.DataFrame)
     return (DF.nrow(df), DF.ncol(df))
 end
 
+function tmp_tbls(con::DB)
+    res = DBInterface.execute(con, "SELECT name FROM (SHOW ALL TABLES) WHERE temporary = true")
+    @show res # hack around #15
+    return res.tbl
+end
+
 @testset "Utilities" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
 
@@ -69,6 +75,29 @@ end
         tbl_name = TIO.create_tbl(con, csv_path; name = "no_assets")
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
         @test shape(df_org) == shape(df_res)
+        # @show df_org[1:3, 1:5] df_res[1:3, 1:5]
+        #
+        # FIXME: cannot do an equality check b/c CSV.File above over
+        # specifies column types:
+        #
+        #  Row │ name             type      active
+        #      │ String31         String15  Bool
+        # ─────┼───────────────────────────────────
+        #    1 │ Asgard_Battery   storage     true
+        #
+        # instead of:
+        #
+        #  Row │ name             type      active
+        #      │ String?          String?   Bool?
+        # ─────┼───────────────────────────────────
+        #    1 │ Asgard_Battery   storage     true
+
+        tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
+        @test tbl_name in tmp_tbls(con)[:name]
+
+        tbl_name = TIO.create_tbl(con, csv_path)
+        @test tbl_name in tmp_tbls(con)[:name]
+        @test tbl_name == "t_assets_data" # t_<cleaned up filename>
     end
 
     @testset "table + CSV w/ alternatives -> table" begin
@@ -84,5 +113,15 @@ end
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
+
+        tbl_name = TIO.create_tbl(
+            con,
+            "no_assets",
+            csv_copy;
+            on = ["name"],
+            cols = ["investable"],
+        )
+        @test tbl_name in tmp_tbls(con)[:name]
+        @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
     end
 end

@@ -49,18 +49,14 @@ Store() = Store(":memory:")
 DEFAULT = Store()
 
 function tmp_tbl_name(source::String)
-    name, _ = replace(splitext(basename(source)), r"[ ()\[\]{}\\+,.]+" => "_")
+    name, _ = splitext(basename(source))
+    name = replace(name, r"[ ()\[\]{}\\+,.-]+" => "_")
     "t_$(name)"
 end
 
 # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
 
 function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show::Bool)
-    if (length(name) == 0) && !show
-        tmp = true
-        name = tmp_tbl_name(source)
-    end
-
     if length(name) > 0
         DBInterface.execute(con, "CREATE $(tmp ? "TEMP" : "") TABLE $name AS $query")
         return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
@@ -80,6 +76,11 @@ function create_tbl(
     check_file(source) ? true : throw(FileNotFoundError(source))
     query = fmt_select(source; _read_opts...)
 
+    if (length(name) == 0) && !show
+        tmp = true
+        name = tmp_tbl_name(source)
+    end
+
     return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end
 
@@ -96,6 +97,11 @@ function create_tbl(
 )
     sources = [fmt_source(con, src) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill)
+
+    if (length(variant) == 0) && !show
+        tmp = true
+        variant = tmp_tbl_name(alt_source)
+    end
 
     return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
