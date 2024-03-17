@@ -35,7 +35,7 @@ struct NeitherTableNorFileError <: Exception
     con::DB
     src::String
     msg::String
-    NeitherTableNorFileError(con, src, msg) =
+    NeitherTableNorFileError(con, src) =
         new(con, src, "$(src): neither table ($con) nor file found")
 end
 
