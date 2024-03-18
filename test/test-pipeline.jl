@@ -45,6 +45,7 @@ end
 @testset "Read CSV" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
+    csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
     df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
 
@@ -64,11 +65,35 @@ end
             csv_copy;
             on = ["name"],
             cols = ["investable"],
+            fill = false,
             show = true,
         )
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
+
+        @testset "back-filling missing rows" begin
+            df_res = TIO.create_tbl(
+                con,
+                csv_path,
+                csv_fill;
+                on = ["name"],
+                cols = ["investable"],
+                fill = true,
+                show = true,
+            )
+            df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+            # NOTE: row order is different, so do a join to determine equality
+            cols = ["name", "investable"]
+            cmp = DF.leftjoin(
+                df_exp[!, cols],
+                df_res[!, cols];
+                on = :name,
+                makeunique = true,
+                source = :source,
+            )
+            @test cmp.source |> x -> all(i -> i == "both", x)
+        end
     end
 
     @testset "CSV -> table" begin
@@ -92,12 +117,14 @@ end
         # ─────┼───────────────────────────────────
         #    1 │ Asgard_Battery   storage     true
 
-        tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
-        @test tbl_name in tmp_tbls(con)[:name]
+        @testset "temporary tables" begin
+            tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
+            @test tbl_name in tmp_tbls(con)[:name]
 
-        tbl_name = TIO.create_tbl(con, csv_path)
-        @test tbl_name in tmp_tbls(con)[:name]
-        @test tbl_name == "t_assets_data" # t_<cleaned up filename>
+            tbl_name = TIO.create_tbl(con, csv_path)
+            @test tbl_name in tmp_tbls(con)[:name]
+            @test tbl_name == "t_assets_data" # t_<cleaned up filename>
+        end
     end
 
     @testset "table + CSV w/ alternatives -> table" begin
@@ -108,20 +135,45 @@ end
             variant = "alt_assets",
             on = ["name"],
             cols = ["investable"],
+            fill = false,
         )
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
 
-        tbl_name = TIO.create_tbl(
-            con,
-            "no_assets",
-            csv_copy;
-            on = ["name"],
-            cols = ["investable"],
-        )
-        @test tbl_name in tmp_tbls(con)[:name]
-        @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
+        @testset "temporary tables" begin
+            tbl_name =
+                TIO.create_tbl(con, "no_assets", csv_copy; on = ["name"], cols = ["investable"])
+            @test tbl_name in tmp_tbls(con)[:name]
+            @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
+        end
+
+        @testset "back-filling missing rows" begin
+            tbl_name = TIO.create_tbl(
+                con,
+                "no_assets",
+                csv_fill;
+                variant = "alt_assets_filled",
+                on = ["name"],
+                cols = ["investable"],
+                fill = true,
+            )
+            df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
+            df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+            # NOTE: row order is different, so do a join to determine equality
+            cols = ["name", "investable"]
+            cmp = DF.leftjoin(
+                df_exp[!, cols],
+                df_res[!, cols];
+                on = :name,
+                makeunique = true,
+                source = :source,
+            )
+            @test cmp.source |> x -> all(i -> i == "both", x)
+        end
     end
+end
+
+@testset "Set table column" begin
 end

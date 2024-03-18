@@ -1,0 +1,7 @@
+,{true;false}
+name,investable
+Asgard_CCGT,false
+Midgard_Hydro,true
+Midgard_E_imports,true
+Valhalla_H2_storage,false
+Valhalla_Waste_heat,true
