@@ -14,6 +14,19 @@ function tmp_tbls(con::DB)
     return res.tbl
 end
 
+"""
+        join_cmp(df1, df2, cols; on::Union{Symbol, Vector{Symbol}})
+
+When row order is different, do a join to determine equality; use the
+columns `cols`, join on `on` (often :name).  The resulting DataFrame
+is returned.  It uniquifies columns with clashing names (see
+`?DF.leftjoin`), and stores a "source" under the `:source` column.
+
+"""
+function join_cmp(df1, df2, cols; on::Union{Symbol,Vector{Symbol}})
+    DF.leftjoin(df1[!, cols], df2[!, cols]; on = on, makeunique = true, source = :source)
+end
+
 @testset "Utilities" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
 
@@ -83,15 +96,8 @@ end
                 show = true,
             )
             df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-            # NOTE: row order is different, so do a join to determine equality
-            cols = ["name", "investable"]
-            cmp = DF.leftjoin(
-                df_exp[!, cols],
-                df_res[!, cols];
-                on = :name,
-                makeunique = true,
-                source = :source,
-            )
+            # NOTE: row order is different, join to determine equality
+            cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
             @test cmp.source |> x -> all(i -> i == "both", x)
         end
     end
@@ -161,15 +167,8 @@ end
             )
             df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
             df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-            # NOTE: row order is different, so do a join to determine equality
-            cols = ["name", "investable"]
-            cmp = DF.leftjoin(
-                df_exp[!, cols],
-                df_res[!, cols];
-                on = :name,
-                makeunique = true,
-                source = :source,
-            )
+            # NOTE: row order is different, join to determine equality
+            cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
             @test cmp.source |> x -> all(i -> i == "both", x)
         end
     end
