@@ -66,6 +66,33 @@ function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show:
     end
 end
 
+"""
+    create_tbl(
+        con::DB,
+        source::String;
+        name::String = "",
+        tmp::Bool = false,
+        show::Bool = false,
+    )
+
+Create a table from a file source (CSV, Parquet, line delimited JSON, etc)
+
+The resulting table is saved as the table `name`.  The name of the
+created table is returned.
+
+Optionally, if `show` is `true`, the table is returned as a Julia
+DataFrame.  This can be useful for interactive debugging in the Julia
+REPL.
+
+It is also possible to create the table as a temporary table by
+setting the `tmp` flag, i.e. the table is session scoped.  It is
+deleted when you close the connection with DuckDB.
+
+When `show` is `false`, and `name` was not provided, a table name
+autotomatically generated from the basename of the filename is used.
+This also unconditionally sets the temporary table flag to `true`.
+
+"""
 function create_tbl(
     con::DB,
     source::String;
@@ -84,6 +111,48 @@ function create_tbl(
     return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end
 
+"""
+    create_tbl(
+        con::DB,
+        base_source::String,
+        alt_source::String;
+        on::Vector{String},
+        cols::Vector{String},
+        variant::String = "",
+        fill::Union{Bool,Vector::Any} = true,
+        tmp::Bool = false,
+        show::Bool = false,
+    )
+
+Create a table from two sources.  The first is used as the base, and
+the second source is used as a source for alternative values by doing
+a `LEFT JOIN`, i.e. all rows in the base source are retained.
+
+Either sources can be a table in DuckDB, or a file source as in the
+single source variant.
+
+The resulting table is saved as the table `variant`.  The name of the
+created table is returned.  The behaviour for `tmp`, and `show` are
+identical to the single source variant.
+
+The `LEFT JOIN` is performend on the columns specified by `on`.  The
+set of columns picked from the alternative source after the join are
+specified by `cols`.
+
+If the alternate source has a subset of rows, the default behaviour is
+to back-fill the corresponding values from the base table.  If this is
+not desired, then `fill` can be set to `false`.  In that case they
+will be `missing` values.
+
+It is also possible to set the fill value to a specific value, however
+then you have to specify a value for every column that is included
+from the alternative source.  (TODO: remove this restriction)
+
+TODO: In the future an "error" option would also be supported, to fail
+loudly when the number of rows do not match between the base and
+alternative source.
+
+"""
 function create_tbl(
     con::DB,
     base_source::String,
@@ -141,6 +210,29 @@ function _set_tbl_col_impl(
     return res
 end
 
+"""
+    set_tbl_col(
+        con::DB,
+        source::String,
+        vals::Vector;
+        on::Symbol,
+        col::Symbol,
+        variant::String = "",
+        tmp::Bool = false,
+        show::Bool = false,
+    )
+
+Create a table from a source (either a DuckDB table or a file), where
+a column can be set to the vector provided by `vals`.  This transform
+is very similar to `create_tbl`, except that the alternate source is a
+data structure in Julia.
+
+The resulting table is saved as the table `name`.  The name of the
+created table is returned.
+
+All other options behave as the two source version of `create_tbl`.
+
+"""
 function set_tbl_col(
     con::DB,
     source::String,
