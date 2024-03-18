@@ -88,9 +88,9 @@ function create_tbl(
     con::DB,
     base_source::String,
     alt_source::String;
-    variant::String = "",
     on::Vector{String},
     cols::Vector{String},
+    variant::String = "",
     fill::Union{Bool,Vector::Any} = true,
     tmp::Bool = false,
     show::Bool = false,
@@ -106,34 +106,34 @@ function create_tbl(
     return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
 
-function _get_index(con::DB, source::String, idx_col::Symbol)
+function _get_index(con::DB, source::String, on::Symbol)
     # TODO: for file source instead of reading again, save to a tmp table
     source = fmt_source(con, source)
-    res = DBInterface.execute(con, "SELECT $idx_col FROM $source")
+    res = DBInterface.execute(con, "SELECT $on FROM $source")
     @show res
     base = DF.DataFrame(res)
-    return getproperty(base, idx_col)
+    return getproperty(base, on)
 end
 
 function _set_tbl_col_impl(
     con::DB,
     source::String,
     idx::Vector,
-    idx_col::Symbol,
-    set_col::Symbol,
     vals::Vector;
+    on::Symbol,
+    col::Symbol,
     opts...,
 )
-    df = DF.DataFrame([idx, vals], [idx_col, set_col])
-    tmp_tbl = "t_col_$(set_col)"
+    df = DF.DataFrame([idx, vals], [on, col])
+    tmp_tbl = "t_col_$(col)"
     register_data_frame(con, df, tmp_tbl)
     # FIXME: should be fill=error (currently not implemented)
     res = create_tbl(
         con,
         source,
         tmp_tbl;
-        on = [String(idx_col)],
-        cols = [String(set_col)],
+        on = [String(on)],
+        cols = [String(col)],
         fill = false,
         opts...,
     )
@@ -144,18 +144,18 @@ end
 function set_tbl_col(
     con::DB,
     source::String,
-    idx_col::Symbol,
-    set_col::Symbol,
     vals::Vector;
+    on::Symbol,
+    col::Symbol,
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
 )
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
-    # set_cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
-    # as: keys(set_cols), and values(set_cols)
-    idx = _get_index(con, source, idx_col)
+    # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
+    # as: keys(cols), and values(cols)
+    idx = _get_index(con, source, on)
     if length(idx) != length(vals)
         msg = "Length of index column and values are different\n"
         cols = [idx, vals]
@@ -171,9 +171,9 @@ function set_tbl_col(
         con,
         source,
         idx,
-        idx_col,
-        set_col,
         vals;
+        on = on,
+        col = col,
         variant = variant,
         tmp = tmp,
         show = show,
@@ -183,22 +183,22 @@ end
 function set_tbl_col(
     con::DB,
     source::String,
-    idx_col::Symbol,
-    set_col::Symbol,
     value;
+    on::Symbol,
+    col::Symbol,
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
 )
-    idx = _get_index(con, source, idx_col)
+    idx = _get_index(con, source, on)
     vals = fill(value, length(idx))
     _set_tbl_col_impl(
         con,
         source,
         idx,
-        idx_col,
-        set_col,
         vals;
+        on = on,
+        col = col,
         variant = variant,
         tmp = tmp,
         show = show,
@@ -209,10 +209,10 @@ end
 # function set_tbl_col(
 #     con::DB,
 #     source::String,
-#     idx_col::Symbol,
-#     set_col::Symbol,
 #     value::Number;
-#     scale::Bool,
+#     on::Symbol,
+#     col::Symbol,
+#     scale::Bool = true,
 #     variant::String = "",
 #     tmp::Bool = false,
 #     show::Bool = false,
@@ -220,10 +220,10 @@ end
 
 function set_tbl_col(
     con::DB,
-    source::String,
-    idx_col::Symbol,
-    set_col::Symbol,
-    apply::Function;
+    source::String;
+    on::Symbol,
+    col::Symbol,
+    apply::Function,
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,

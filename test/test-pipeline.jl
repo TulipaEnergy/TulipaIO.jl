@@ -183,25 +183,24 @@ end
 
     con = DBInterface.connect(DB)
 
+    opts = Dict(:on => :name, :col => :investable, :show => true)
     @testset "w/ vector" begin
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-        df_res = TIO.set_tbl_col(con, csv_path, :name, :investable, df_exp.investable; show = true)
+        df_res = TIO.set_tbl_col(con, csv_path, df_exp.investable; opts...)
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
         investable = cmp[!, [c for c in propertynames(cmp) if occursin("investable", String(c))]]
         @test isequal.(investable[!, 1], investable[!, 2]) |> all
 
         # stupid Julia! grow up!
-        args = [con, csv_path, :name, :investable, df_exp.investable[2:end]]
-        @test_throws DimensionMismatch TIO.set_tbl_col(args...; show = true)
-        note = r"Length.+different"
-        @test_throws note TIO.set_tbl_col(args...; show = true)
-        hdr = r"index.+value"
-        @test_throws hdr TIO.set_tbl_col(args...; show = true)
+        args = [con, csv_path, df_exp.investable[2:end]]
+        @test_throws DimensionMismatch TIO.set_tbl_col(args...; opts...)
+        @test_throws r"Length.+different" TIO.set_tbl_col(args...; opts...)
+        @test_throws r"index.+value" TIO.set_tbl_col(args...; opts...)
     end
 
     @testset "w/ constant" begin
-        df_res = TIO.set_tbl_col(con, csv_path, :name, :investable, true; show = true)
+        df_res = TIO.set_tbl_col(con, csv_path, true; opts...)
         @test df_res.investable |> all
     end
 end
