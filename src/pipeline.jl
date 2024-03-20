@@ -3,7 +3,7 @@ using DuckDB: DB, DBInterface, Stmt, register_data_frame, unregister_data_frame
 
 using .FmtSQL: fmt_join, fmt_read, fmt_select
 
-export create_tbl
+export create_tbl, set_tbl_col
 
 # default options (for now)
 _read_opts = pairs((header = true, skip = 1))
