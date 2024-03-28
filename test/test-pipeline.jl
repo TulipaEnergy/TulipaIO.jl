@@ -10,8 +10,7 @@ end
 
 function tmp_tbls(con::DB)
     res = DBInterface.execute(con, "SELECT name FROM (SHOW ALL TABLES) WHERE temporary = true")
-    @show res # hack around #15
-    return res.tbl
+    return DF.DataFrame(res)
 end
 
 """
@@ -129,10 +128,10 @@ end
 
         @testset "temporary tables" begin
             tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
-            @test tbl_name in tmp_tbls(con)[:name]
+            @test tbl_name in tmp_tbls(con)[!, :name]
 
             tbl_name = TIO.create_tbl(con, csv_path)
-            @test tbl_name in tmp_tbls(con)[:name]
+            @test tbl_name in tmp_tbls(con)[!, :name]
             @test tbl_name == "t_assets_data" # t_<cleaned up filename>
         end
     end
@@ -155,7 +154,7 @@ end
         @testset "temporary tables" begin
             tbl_name =
                 TIO.create_tbl(con, "no_assets", csv_copy; on = ["name"], cols = ["investable"])
-            @test tbl_name in tmp_tbls(con)[:name]
+            @test tbl_name in tmp_tbls(con)[!, :name]
             @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
         end
 

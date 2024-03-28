@@ -14,10 +14,8 @@ function check_file(source::String)
 end
 
 function check_tbl(con::DB, source::String)
-    res = DBInterface.execute(con, "SHOW TABLES")
-    @show res
-    tbls = res.tbl[:name]
-    source in tbls
+    df = DBInterface.execute(con, "SHOW TABLES") |> DF.DataFrame
+    source in df[!, :name]
 end
 
 function fmt_source(con::DB, source::String)
@@ -178,9 +176,7 @@ end
 function _get_index(con::DB, source::String, on::Symbol)
     # TODO: for file source instead of reading again, save to a tmp table
     source = fmt_source(con, source)
-    res = DBInterface.execute(con, "SELECT $on FROM $source")
-    @show res
-    base = DF.DataFrame(res)
+    base = DBInterface.execute(con, "SELECT $on FROM $source") |> DF.DataFrame
     return getproperty(base, on)
 end
 
