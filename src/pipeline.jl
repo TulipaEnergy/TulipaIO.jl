@@ -268,6 +268,27 @@ function set_tbl_col(
     )
 end
 
+"""
+    set_tbl_col(
+        con::DB,
+        source::String,
+        value;
+        on::Symbol,
+        col::Symbol,
+        variant::String = "",
+        tmp::Bool = false,
+        show::Bool = false,
+    )
+
+Create a table from a source (either a DuckDB table or a file), where
+a column can be set to the value provided by `value`.  Unlike the
+vector variant of this function, all values of the column are set to
+this value.
+
+All other options and behaviour are same as the vector variant of this
+function.
+
+"""
 function set_tbl_col(
     con::DB,
     source::String,
@@ -292,19 +313,6 @@ function set_tbl_col(
         show = show,
     )
 end
-
-# FIXME: signature clashes w/ above
-# function set_tbl_col(
-#     con::DB,
-#     source::String,
-#     value::Number;
-#     on::Symbol,
-#     col::Symbol,
-#     scale::Bool = true,
-#     variant::String = "",
-#     tmp::Bool = false,
-#     show::Bool = false,
-# ) end
 
 function set_tbl_col(
     con::DB,
