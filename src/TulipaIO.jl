@@ -2,6 +2,8 @@ module TulipaIO
 
 include("exceptions.jl")
 
+# InfluxDB client
+include("influx.jl")
 # ESDL JSON parser
 include("parsers.jl")
 
