@@ -1,3 +1,5 @@
+module InfluxDB
+
 import JSON3
 import HTTP
 import DataFrames as DF
@@ -6,25 +8,20 @@ import Dates: DateTime
 # NOTE: this doesn't actually do anything smart like batching
 # or keeping an open connection, it just remembers the connection
 # details
-struct InfluxClient
+struct InfluxDBClient
     host::String
     database::String
     port::Int
     path::String
     username::String
     password::String
-    InfluxClient(
-        host::String,
-        database::String,
-        port::Int = 8086,
-        path::String = "query",
-        username::String = "",
-        password::String = "",
-    ) = new(host, database, port, username, password, path)
 end
 
+InfluxDBClient(host::String, database::String) =
+    InfluxDBClient(host, database, 8086, "query", "", "")
+
 function query(
-    client::InfluxClient,
+    client::InfluxDBClient,
     measurement::String,
     time_range_start::DateTime,
     time_range_end::DateTime,
@@ -47,4 +44,6 @@ function query(
     columns = [[x[1] for x in rows], [x[2] for x in rows]]
     df = DF.DataFrame(columns, parsed["results"][1]["series"][1]["columns"])
     return df
+end
+
 end
