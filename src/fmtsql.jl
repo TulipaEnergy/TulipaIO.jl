@@ -1,5 +1,7 @@
 module FmtSQL
 
+include("exceptions.jl")
+
 using Printf: format, Format
 
 sprintf(fmt::String, args...) = format(Format(fmt), args...)
@@ -68,6 +70,40 @@ function fmt_join(
     from_ = "FROM $from_subquery t1 LEFT JOIN $join_subquery t2 ON ($join_on)"
 
     "$(select_)\n$(from_)"
+end
+
+_ops = (:(==), :(>), :(:<), :(>=), :(<=), :(!=), :%, :in)
+_ops_map = (; :(!=) => "<>", :% => "LIKE", :in => "IN")
+
+macro where_(exprs...)
+    xs = []
+    for e in exprs
+        if !isa(e, Expr) || e.head != :call || length(e.args) != 3
+            throw(InvalidWhereCondition(e))
+        end
+        op, lhs, rhs = e.args
+        if !(op in _ops)
+            # FIXME: more specific exception
+            throw(InvalidWhereCondition(e))
+        end
+        op = op in keys(_ops_map) ? _ops_map[op] : "$op"
+        if op == "IN"
+            rhs = eval(rhs)     # FIXME: eval in invocation environment
+            if isa(rhs, AbstractRange)
+                op = "BETWEEN"
+                rhs = sprintf("%s AND %s", fmt_quote(rhs.start), fmt_quote(rhs.stop))
+            elseif length(rhs) > 1
+                rhs = sprintf("(%s)", join([sprintf(fmt_quote(rhs[1]), i) for i in rhs], ", "))
+            else
+                # FIXME: clearer exception
+                throw(TypeError("$(rhs): not a range or array type"))
+            end
+        else
+            rhs = fmt_quote(rhs)
+        end
+        append!(xs, [sprintf("(%s %s %s)", lhs, op, rhs)])
+    end
+    join(xs, " AND ")
 end
 
 end # module FmtSQL

@@ -43,3 +43,11 @@ Base.showerror(io::IO, exc::FileNotFoundError) = print(io, exc.msg)
 Base.showerror(io::IO, exc::DirectoryNotFoundError) = print(io, exc.msg)
 Base.showerror(io::IO, exc::TableNotFoundError) = print(io, exc.msg)
 Base.showerror(io::IO, exc::NeitherTableNorFileError) = print(io, exc.msg)
+
+struct InvalidWhereCondition <: Exception
+    expr::Any
+    msg::String
+    InvalidWhereCondition(expr) = new(expr, "Does not match format (lhs, op, rhs): $(expr)")
+end
+
+Base.showerror(io::IO, exc::InvalidWhereCondition) = print(io, exc.msg)
