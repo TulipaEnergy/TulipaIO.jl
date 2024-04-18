@@ -211,9 +211,16 @@ end
 
     @testset "w/ constant after filtering" begin
         where_clause = TIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
-        df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); opts..., where_ = where_clause)
+        df_res = TIO.set_tbl_col(
+            con,
+            csv_path,
+            Dict(:investable => true);
+            opts...,
+            where_ = where_clause,
+        )
         @test shape(df_res) == shape(df_org)
-        df_res = filter(row -> 25 <= row.lifetime <= 50 && startswith(row.name, "Valhalla_"), df_res)
+        df_res =
+            filter(row -> 25 <= row.lifetime <= 50 && startswith(row.name, "Valhalla_"), df_res)
         @test df_res.investable |> all
     end
 end

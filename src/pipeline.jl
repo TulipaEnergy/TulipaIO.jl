@@ -236,7 +236,7 @@ function set_tbl_col(
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
-) where T <: Union{Int64, Float64, String, Bool}
+) where {T<:Union{Int64,Float64,String,Bool}}
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
@@ -298,13 +298,13 @@ function.
 function set_tbl_col(
     con::DB,
     source::String,
-    cols::Dict{Symbol, T};
+    cols::Dict{Symbol,T};
     on::Symbol,
     where_::String = "",
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
-) where T
+) where {T}
     # FIXME: accept NamedTuple|Dict as cols in stead of value & col
     source = fmt_source(con, source)
     subquery = fmt_select(source; cols...)
@@ -313,7 +313,13 @@ function set_tbl_col(
     end
 
     # FIXME: resolve String|Symbol schizophrenic API
-    query = fmt_join(source, "($subquery)"; on = ["$on"], cols = map(string, [keys(cols)...]), fill = true)
+    query = fmt_join(
+        source,
+        "($subquery)";
+        on = ["$on"],
+        cols = map(string, [keys(cols)...]),
+        fill = true,
+    )
 
     if (length(variant) == 0) && !show
         tmp = true
