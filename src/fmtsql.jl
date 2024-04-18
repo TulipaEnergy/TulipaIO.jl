@@ -2,9 +2,11 @@ module FmtSQL
 
 using Printf: format, Format
 
-function sprintf(fmt::String, args...)
-    format(Format(fmt), args...)
-end
+sprintf(fmt::String, args...) = format(Format(fmt), args...)
+
+# quote literals appropriately for SQL
+fmt_quote(item) = "$(item)"
+fmt_quote(item::Union{AbstractString,AbstractChar}) = "'$(item)'"
 
 function fmt_opts(source::String; opts...)
     _src = '?' in source ? "$source" : "'$(source)'"
