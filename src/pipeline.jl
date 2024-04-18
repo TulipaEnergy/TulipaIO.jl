@@ -334,6 +334,25 @@ function set_tbl_col(
     show::Bool = false,
 ) end
 
+function select(
+    con::DB,
+    source::String,
+    expression::String;
+    name::String = "",
+    tmp::Bool = false,
+    show::Bool = false,
+)
+    src = fmt_source(con, source)
+    query = "SELECT * FROM $src WHERE $expression"
+
+    if (length(name) == 0) && !show
+        tmp = true
+        name = tmp_tbl_name(source)
+    end
+
+    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+end
+
 # TODO:
 # - filter rows (where clause)
 #   - is filtering on columns needed?
