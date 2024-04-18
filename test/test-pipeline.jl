@@ -186,17 +186,17 @@ end
 
     con = DBInterface.connect(DB)
 
-    opts = Dict(:on => :name, :col => :investable, :show => true)
+    opts = Dict(:on => :name, :show => true)
     @testset "w/ vector" begin
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-        df_res = TIO.set_tbl_col(con, csv_path, df_exp.investable; opts...)
+        df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => df_exp.investable); opts...)
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
         investable = cmp[!, [c for c in propertynames(cmp) if occursin("investable", String(c))]]
         @test isequal.(investable[!, 1], investable[!, 2]) |> all
 
         # stupid Julia! grow up!
-        args = [con, csv_path, df_exp.investable[2:end]]
+        args = [con, csv_path, Dict(:investable => df_exp.investable[2:end])]
         @test_throws DimensionMismatch TIO.set_tbl_col(args...; opts...)
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
             @test_throws r"Length.+different" TIO.set_tbl_col(args...; opts...)
@@ -205,7 +205,15 @@ end
     end
 
     @testset "w/ constant" begin
-        df_res = TIO.set_tbl_col(con, csv_path, true; opts...)
+        df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); opts...)
+        @test df_res.investable |> all
+    end
+
+    @testset "w/ constant after filtering" begin
+        where_clause = TIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
+        df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); opts..., where_ = where_clause)
+        @test shape(df_res) == shape(df_org)
+        df_res = filter(row -> 25 <= row.lifetime <= 50 && startswith(row.name, "Valhalla_"), df_res)
         @test df_res.investable |> all
     end
 end
