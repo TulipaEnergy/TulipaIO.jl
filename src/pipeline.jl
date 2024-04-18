@@ -210,13 +210,12 @@ end
     set_tbl_col(
         con::DB,
         source::String,
-        vals::Vector;
+        cols::Dict{Symbol,Vector{T}};
         on::Symbol,
-        col::Symbol,
         variant::String = "",
         tmp::Bool = false,
         show::Bool = false,
-    )
+    ) where T <: Union{Int64, Float64, String, Bool}
 
 Create a table from a source (either a DuckDB table or a file), where
 a column can be set to the vector provided by `vals`.  This transform
@@ -232,23 +231,29 @@ All other options behave as the two source version of `create_tbl`.
 function set_tbl_col(
     con::DB,
     source::String,
-    vals::Vector;
+    cols::Dict{Symbol,Vector{T}};
     on::Symbol,
-    col::Symbol,
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
-)
+) where T <: Union{Int64, Float64, String, Bool}
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
     # as: keys(cols), and values(cols)
+
+    # for now, support only one column
+    if length(cols) > 1
+        throw(DomainError(keys(cols), "only single column is support"))
+    end
+
     idx = _get_index(con, source, on)
+    vals = first(values(cols))
     if length(idx) != length(vals)
         msg = "Length of index column and values are different\n"
-        cols = [idx, vals]
+        _cols = [idx, vals]
         data =
-            [get.(cols, i, "-") for i = 1:maximum(length, cols)] |>
+            [get.(_cols, i, "-") for i = 1:maximum(length, _cols)] |>
             Iterators.flatten |>
             collect |>
             x -> reshape(x, 2, :) |> permutedims
@@ -261,7 +266,7 @@ function set_tbl_col(
         idx,
         vals;
         on = on,
-        col = col,
+        col = first(keys(cols)),
         variant = variant,
         tmp = tmp,
         show = show,
@@ -272,13 +277,14 @@ end
     set_tbl_col(
         con::DB,
         source::String,
-        value;
+        cols::Dict{Symbol, T};
         on::Symbol,
         col::Symbol,
+        where_::String = "",
         variant::String = "",
         tmp::Bool = false,
         show::Bool = false,
-    )
+    ) where T
 
 Create a table from a source (either a DuckDB table or a file), where
 a column can be set to the value provided by `value`.  Unlike the
@@ -292,26 +298,29 @@ function.
 function set_tbl_col(
     con::DB,
     source::String,
-    value;
+    cols::Dict{Symbol, T};
     on::Symbol,
-    col::Symbol,
+    where_::String = "",
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
-)
-    idx = _get_index(con, source, on)
-    vals = fill(value, length(idx))
-    _set_tbl_col_impl(
-        con,
-        source,
-        idx,
-        vals;
-        on = on,
-        col = col,
-        variant = variant,
-        tmp = tmp,
-        show = show,
-    )
+) where T
+    # FIXME: accept NamedTuple|Dict as cols in stead of value & col
+    source = fmt_source(con, source)
+    subquery = fmt_select(source; cols...)
+    if length(where_) > 0
+        subquery *= " WHERE $(where_)"
+    end
+
+    # FIXME: resolve String|Symbol schizophrenic API
+    query = fmt_join(source, "($subquery)"; on = ["$on"], cols = map(string, [keys(cols)...]), fill = true)
+
+    if (length(variant) == 0) && !show
+        tmp = true
+        variant = tmp_tbl_name(source)
+    end
+
+    return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
 
 function set_tbl_col(
@@ -327,6 +336,4 @@ function set_tbl_col(
 
 # TODO:
 # - filter rows (where clause)
-#   - apply on reduced set
-#   - apply on reduced set, and update original
 #   - is filtering on columns needed?
