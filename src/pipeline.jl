@@ -37,7 +37,7 @@ struct Store
 
     function Store(store::String)
         con = DBInterface.connect(DB, store)
-        query = fmt_select("(?)"; header = true, skip = 1)
+        query = fmt_select(fmt_read("(?)"; _read_opts...))
         stmt = DBInterface.prepare(con, query)
         new(con, stmt)
     end
@@ -99,7 +99,7 @@ function create_tbl(
     show::Bool = false,
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
-    query = fmt_select(source; _read_opts...)
+    query = fmt_select(fmt_read(source; _read_opts...))
 
     if (length(name) == 0) && !show
         tmp = true

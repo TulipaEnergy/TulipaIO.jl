@@ -29,8 +29,15 @@ function fmt_read(source::String; opts...)
     sprintf("%s(%s)", reader(source), fmt_opts(source; opts...))
 end
 
-function fmt_select(source::String; opts...)
-    sprintf("SELECT * FROM %s", fmt_read(source; opts...))
+function fmt_select(source::String; cols...)
+    alts = if length(cols) > 0
+        exclude = join(keys(cols), ", ")
+        include = join([sprintf("%s AS %s", fmt_quote(p[2]), p[1]) for p in cols], ", ")
+        "EXCLUDE ($exclude), $include"
+    else
+        ""
+    end
+    "SELECT * $alts FROM $source"
 end
 
 function fmt_join(
