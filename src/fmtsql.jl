@@ -45,8 +45,8 @@ end
 function fmt_join(
     from_subquery::String,
     join_subquery::String;
-    on::Vector{String},
-    cols::Vector{String},
+    on::Vector{Symbol},
+    cols::Vector{Symbol},
     fill::Union{Bool,Vector::Any},
 )
     exclude = join(cols, ", ")
