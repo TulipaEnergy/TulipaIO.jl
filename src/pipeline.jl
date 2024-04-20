@@ -114,8 +114,8 @@ end
         con::DB,
         base_source::String,
         alt_source::String;
-        on::Vector{String},
-        cols::Vector{String},
+        on::Vector{Symbol},
+        cols::Vector{Symbol},
         variant::String = "",
         fill::Union{Bool,Vector::Any} = true,
         tmp::Bool = false,
@@ -155,8 +155,8 @@ function create_tbl(
     con::DB,
     base_source::String,
     alt_source::String;
-    on::Vector{String},
-    cols::Vector{String},
+    on::Vector{Symbol},
+    cols::Vector{Symbol},
     variant::String = "",
     fill::Union{Bool,Vector::Any} = true,
     tmp::Bool = false,
@@ -193,15 +193,7 @@ function _set_tbl_col_impl(
     tmp_tbl = "t_col_$(col)"
     register_data_frame(con, df, tmp_tbl)
     # FIXME: should be fill=error (currently not implemented)
-    res = create_tbl(
-        con,
-        source,
-        tmp_tbl;
-        on = [String(on)],
-        cols = [String(col)],
-        fill = false,
-        opts...,
-    )
+    res = create_tbl(con, source, tmp_tbl; on = [on], cols = [col], fill = false, opts...)
     unregister_data_frame(con, tmp_tbl)
     return res
 end
@@ -313,13 +305,7 @@ function set_tbl_col(
     end
 
     # FIXME: resolve String|Symbol schizophrenic API
-    query = fmt_join(
-        source,
-        "($subquery)";
-        on = ["$on"],
-        cols = map(string, [keys(cols)...]),
-        fill = true,
-    )
+    query = fmt_join(source, "($subquery)"; on = [on], cols = [keys(cols)...], fill = true)
 
     if (length(variant) == 0) && !show
         tmp = true

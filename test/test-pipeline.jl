@@ -79,8 +79,8 @@ end
             con,
             csv_path,
             csv_copy;
-            on = ["name"],
-            cols = ["investable"],
+            on = [:name],
+            cols = [:investable],
             fill = false,
             show = true,
         )
@@ -93,8 +93,8 @@ end
                 con,
                 csv_path,
                 csv_fill;
-                on = ["name"],
-                cols = ["investable"],
+                on = [:name],
+                cols = [:investable],
                 fill = true,
                 show = true,
             )
@@ -142,8 +142,8 @@ end
             "no_assets",
             csv_copy;
             variant = "alt_assets",
-            on = ["name"],
-            cols = ["investable"],
+            on = [:name],
+            cols = [:investable],
             fill = false,
         )
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
@@ -153,7 +153,7 @@ end
 
         @testset "temporary tables" begin
             tbl_name =
-                TIO.create_tbl(con, "no_assets", csv_copy; on = ["name"], cols = ["investable"])
+                TIO.create_tbl(con, "no_assets", csv_copy; on = [:name], cols = [:investable])
             @test tbl_name in tmp_tbls(con)[!, :name]
             @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
         end
@@ -164,8 +164,8 @@ end
                 "no_assets",
                 csv_fill;
                 variant = "alt_assets_filled",
-                on = ["name"],
-                cols = ["investable"],
+                on = [:name],
+                cols = [:investable],
                 fill = true,
             )
             df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
