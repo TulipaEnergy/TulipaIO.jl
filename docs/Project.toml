@@ -4,7 +4,6 @@
 #
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-TulipaIO = "c7927005-42b9-4ba8-a79f-a212f131b730"
 
 [compat]
 Documenter = "1"
