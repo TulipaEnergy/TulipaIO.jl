@@ -1,6 +1,11 @@
-# Notes on writing tests
+# Developer documentation
 
-## Testing for exceptions and errors
+You can find more general developer documentation at [TulipaEnergyModel's README.dev.md](https://github.com/TulipaEnergy/TulipaEnergyModel.jl/blob/main/README.dev.md).
+Here you will find more specific information.
+
+## Notes on writing tests
+
+### Testing for exceptions and errors
 
 We should also test error handling, this is particularly important
 since `TulipaIO` is user-facing.  We follow two principles:

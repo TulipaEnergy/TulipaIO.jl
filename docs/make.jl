@@ -15,12 +15,7 @@ makedocs(;
         canonical = "https://TulipaEnergy.github.io/TulipaIO.jl",
         assets = ["assets/style.css"],
     ),
-    pages = [
-        "Home" => "index.md",
-        "Contributing" => "contributing.md",
-        "Dev setup" => "developer.md",
-        "Reference" => "reference.md",
-    ],
+    pages = ["Home" => "index.md", "Reference" => "reference.md"],
 )
 
 deploydocs(; repo = "github.com/TulipaEnergy/TulipaIO.jl", push_preview = true)
