@@ -75,33 +75,48 @@ end
     end
 
     @testset "CSV w/ alternatives -> DataFrame" begin
-        df_res = TIO.create_tbl(
-            con,
-            csv_path,
-            csv_copy;
-            on = [:name],
-            cols = [:investable],
-            fill = false,
-            show = true,
-        )
+        opts = Dict(:on => [:name], :cols => [:investable], :show => true)
+        df_res = TIO.create_tbl(con, csv_path, csv_copy; opts..., fill = false)
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
 
+        @testset "no filling for missing rows" begin
+            df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = false)
+            df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+            # NOTE: row order is different, join to determine equality
+            cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
+            @test ifelse.(
+                ismissing.(cmp.investable_1),
+                cmp.source .== "left_only",
+                cmp.source .== "both",
+            ) |> all
+        end
+
         @testset "back-filling missing rows" begin
+            df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = true)
+            df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+            cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
+            @test all(cmp.investable .== cmp.investable_1)
+            @test cmp.source |> x -> all(i -> i == "both", x)
+        end
+
+        @testset "back-filling missing rows w/ alternate values" begin
             df_res = TIO.create_tbl(
                 con,
                 csv_path,
                 csv_fill;
-                on = [:name],
-                cols = [:investable],
+                opts...,
                 fill = true,
-                show = true,
+                values = Dict(:investable => true),
             )
-            df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-            # NOTE: row order is different, join to determine equality
-            cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
-            @test cmp.source |> x -> all(i -> i == "both", x)
+            df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+            cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
+            @test ifelse.(
+                ismissing.(cmp.investable_1),
+                cmp.investable .== true,
+                cmp.investable .== cmp.investable_1,
+            ) |> all
         end
     end
 
@@ -137,13 +152,13 @@ end
     end
 
     @testset "table + CSV w/ alternatives -> table" begin
+        opts = Dict(:on => [:name], :cols => [:investable])
         tbl_name = TIO.create_tbl(
             con,
             "no_assets",
             csv_copy;
             variant = "alt_assets",
-            on = [:name],
-            cols = [:investable],
+            opts...,
             fill = false,
         )
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
@@ -152,8 +167,7 @@ end
         @test df_org.investable != df_res.investable
 
         @testset "temporary tables" begin
-            tbl_name =
-                TIO.create_tbl(con, "no_assets", csv_copy; on = [:name], cols = [:investable])
+            tbl_name = TIO.create_tbl(con, "no_assets", csv_copy; opts...)
             @test tbl_name in tmp_tbls(con)[!, :name]
             @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
         end
@@ -164,15 +178,35 @@ end
                 "no_assets",
                 csv_fill;
                 variant = "alt_assets_filled",
-                on = [:name],
-                cols = [:investable],
+                opts...,
                 fill = true,
             )
             df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
             df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
             # NOTE: row order is different, join to determine equality
             cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
+            @test all(cmp.investable .== cmp.investable_1)
             @test cmp.source |> x -> all(i -> i == "both", x)
+        end
+
+        @testset "back-filling missing rows w/ alternate values" begin
+            tbl_name = TIO.create_tbl(
+                con,
+                "no_assets",
+                csv_fill;
+                variant = "alt_assets_filled_alt",
+                opts...,
+                fill = true,
+                values = Dict(:investable => true),
+            )
+            df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
+            df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+            cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
+            @test ifelse.(
+                ismissing.(cmp.investable_1),
+                cmp.investable .== true,
+                cmp.investable .== cmp.investable_1,
+            ) |> all
         end
     end
 end

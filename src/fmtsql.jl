@@ -47,22 +47,26 @@ function fmt_join(
     join_subquery::String;
     on::Vector{Symbol},
     cols::Vector{Symbol},
-    fill::Union{Bool,Vector::Any},
+    fill::Bool,
+    values::Union{Missing,Dict} = missing,
 )
     exclude = join(cols, ", ")
-    if fill       # back fill
+    if fill
         # e.g.: IFNULL(t2.investable, t1.investable) AS investable
-        include = join(map(c -> "IFNULL(t2.$c, t1.$c) AS $c", cols), ", ")
-    elseif !fill # explicit missing
-        include = join(map(c -> "t2.$c", cols), ", ")
-    else          # fill with default
-        if length(fill) != length(cols)
-            msg = "number of default values does not match columns\n"
-            msg = msg * "columns: $cols\n"
-            msg = msg * "defaults: $fill"
-            error(msg)
+        if ismissing(values)
+            include = join(map(c -> "IFNULL(t2.$c, t1.$c) AS $c", cols), ", ")
+        else
+            include = join(
+                map(c -> begin
+                        default = get(values, c, missing)
+                        fill_value = ismissing(default) ? "t1.$c" : fmt_quote(default)
+                        "IFNULL(t2.$c, $fill_value) AS $c"
+                    end, cols),
+                ", ",
+            )
         end
-        include = join(map((c, f) -> "IFNULL(t2.$c, $f) AS $c", zip(cols, fill)), ", ")
+    else
+        include = join(map(c -> "t2.$c", cols), ", ")
     end
     select_ = "SELECT t1.* EXCLUDE ($exclude), $include"
 
