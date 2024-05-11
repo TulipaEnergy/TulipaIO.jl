@@ -29,6 +29,29 @@ end
 @testset "Utilities" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
 
+    @testset "option handling" begin
+        @testset "table name is specified -> noop" begin
+            for (tmp, show) in Base.Iterators.product([true, false], [true, false])
+                @test ("foo", tmp, show) == TIO._handle_opts("my-file.csv", "foo", tmp, show)
+            end
+        end
+
+        @testset "show=true: `name` & `tmp` ignored" begin
+            for tmp in [true, false]
+                name, _ = TIO._handle_opts("my-file.csv", "", tmp, true)
+                @test name == ""
+            end
+        end
+
+        @testset "tmp=false & show=false: force `tmp` with empty `name`" begin
+            for (name, new_name, new_tmp) in [["", "t_my_file", true], ["foo", "foo", false]]
+                name, tmp, _ = TIO._handle_opts("my-file.csv", name, false, false)
+                @test name == new_name
+                @test tmp == new_tmp
+            end
+        end
+    end
+
     # redundant for the current implementation, needed when we support globs
     @test TIO.check_file(csv_path)
     @test !TIO.check_file("not-there")
