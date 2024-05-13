@@ -53,12 +53,12 @@ function fmt_join(
     exclude = join(cols, ", ")
     if fill
         # e.g.: IFNULL(t2.investable, t1.investable) AS investable
-        if ismissing(values)
+        if ismissing(fill_values)
             include = join(map(c -> "IFNULL(t2.$c, t1.$c) AS $c", cols), ", ")
         else
             include = join(
                 map(c -> begin
-                        default = get(values, c, missing)
+                        default = get(fill_values, c, missing)
                         fill_value = ismissing(default) ? "t1.$c" : fmt_quote(default)
                         "IFNULL(t2.$c, $fill_value) AS $c"
                     end, cols),
