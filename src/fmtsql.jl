@@ -9,6 +9,7 @@ sprintf(fmt::String, args...) = format(Format(fmt), args...)
 # quote literals appropriately for SQL
 fmt_quote(item) = "$(item)"
 fmt_quote(item::Union{AbstractString,AbstractChar}) = "'$(item)'"
+fmt_quote(::Missing) = missing
 
 function fmt_opts(source::String; opts...)
     _src = '?' in source ? "$source" : "'$(source)'"
@@ -57,11 +58,14 @@ function fmt_join(
             include = join(map(c -> "IFNULL(t2.$c, t1.$c) AS $c", cols), ", ")
         else
             include = join(
-                map(c -> begin
-                        default = get(fill_values, c, missing)
-                        fill_value = ismissing(default) ? "t1.$c" : fmt_quote(default)
+                map(
+                    c -> begin
+                        fill_value =
+                            get(fill_values, c, missing) |> fmt_quote |> v -> coalesce(v, "t1.$c")
                         "IFNULL(t2.$c, $fill_value) AS $c"
-                    end, cols),
+                    end,
+                    cols,
+                ),
                 ", ",
             )
         end
