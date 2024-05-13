@@ -52,12 +52,17 @@ function tmp_tbl_name(source::String)
     "t_$(name)"
 end
 
-function _handle_opts(source::String, name::String, tmp::Bool, show::Bool)
-    if (length(name) == 0) && !show
+function _handle_opts(source::String, name::String, tmp::Bool, ::Val{false})
+    # show = false
+    if (length(name) == 0)
         tmp = true
         name = tmp_tbl_name(source)
     end
-    return name, tmp, show
+    return name, tmp, false
+end
+
+function _handle_opts(source::String, name::String, tmp::Bool, ::Val{true})
+    return name, tmp, true
 end
 
 # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
@@ -119,7 +124,7 @@ function create_tbl(
     end
     query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
 
-    name, tmp, show = _handle_opts(source, name, tmp, show)
+    name, tmp, show = _handle_opts(source, name, tmp, Val(show))
 
     return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end
@@ -182,7 +187,7 @@ function create_tbl(
     sources = [fmt_source(con, src) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
-    variant, tmp, show = _handle_opts(alt_source, variant, tmp, show)
+    variant, tmp, show = _handle_opts(alt_source, variant, tmp, Val(show))
 
     return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
@@ -311,6 +316,8 @@ function set_tbl_col(
     tmp::Bool = false,
     show::Bool = false,
 ) where {T}
+    variant, tmp, show = _handle_opts(source, variant, tmp, Val(show))
+
     # FIXME: accept NamedTuple|Dict as cols in stead of value & col
     source = fmt_source(con, source)
     subquery = fmt_select(source; cols...)
@@ -319,10 +326,6 @@ function set_tbl_col(
     end
 
     query = fmt_join(source, "($subquery)"; on = [on], cols = [keys(cols)...], fill = true)
-
-    # FIXME: should be earlier
-    variant, tmp, show = _handle_opts(source, variant, tmp, show)
-
     return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
 end
 
@@ -348,7 +351,7 @@ function select(
     src = fmt_source(con, source)
     query = "SELECT * FROM $src WHERE $expression"
 
-    name, tmp, show = _handle_opts(source, name, tmp, show)
+    name, tmp, show = _handle_opts(source, name, tmp, Val(show))
 
     return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end

@@ -32,20 +32,20 @@ end
     @testset "option handling" begin
         @testset "table name is specified -> noop" begin
             for (tmp, show) in Base.Iterators.product([true, false], [true, false])
-                @test ("foo", tmp, show) == TIO._handle_opts("my-file.csv", "foo", tmp, show)
+                @test ("foo", tmp, show) == TIO._handle_opts("my-file.csv", "foo", tmp, Val(show))
             end
         end
 
         @testset "show=true: `name` & `tmp` ignored" begin
             for tmp in [true, false]
-                name, _ = TIO._handle_opts("my-file.csv", "", tmp, true)
+                name, _ = TIO._handle_opts("my-file.csv", "", tmp, Val(true))
                 @test name == ""
             end
         end
 
         @testset "tmp=false & show=false: force `tmp` with empty `name`" begin
             for (name, new_name, new_tmp) in [["", "t_my_file", true], ["foo", "foo", false]]
-                name, tmp, _ = TIO._handle_opts("my-file.csv", name, false, false)
+                name, tmp, _ = TIO._handle_opts("my-file.csv", name, false, Val(false))
                 @test name == new_name
                 @test tmp == new_tmp
             end
