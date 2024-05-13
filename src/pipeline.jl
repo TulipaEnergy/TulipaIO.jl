@@ -118,7 +118,7 @@ end
         cols::Vector{Symbol},
         variant::String = "",
         fill::Bool = true,
-        values::Union{Missing,Dict} = missing,
+        fill_values::Union{Missing,Dict} = missing,
         tmp::Bool = false,
         show::Bool = false,
     )
@@ -143,7 +143,7 @@ to back-fill the corresponding values from the base table.  If this is
 not desired, then `fill` can be set to `false`.  In that case they
 will be `missing` values.
 
-To fill an alternate value, you can set `values` to a dictionary, where
+To fill an alternate value, you can set `fill_values` to a dictionary, where
 the keys are column names, and the values are the corresponding fill
 value.  If any columns are missing, it falls back to back-fill.
 
@@ -160,12 +160,12 @@ function create_tbl(
     cols::Vector{Symbol},
     variant::String = "",
     fill::Bool = true,
-    values::Union{Missing,Dict} = missing,
+    fill_values::Union{Missing,Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
 )
     sources = [fmt_source(con, src) for src in (base_source, alt_source)]
-    query = fmt_join(sources...; on = on, cols = cols, fill = fill, values = values)
+    query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
     if (length(variant) == 0) && !show
         tmp = true
