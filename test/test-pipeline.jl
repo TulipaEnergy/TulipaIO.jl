@@ -108,7 +108,7 @@ end
                 csv_fill;
                 opts...,
                 fill = true,
-                values = Dict(:investable => true),
+                fill_values = Dict(:investable => true),
             )
             df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
             cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
@@ -197,7 +197,7 @@ end
                 variant = "alt_assets_filled_alt",
                 opts...,
                 fill = true,
-                values = Dict(:investable => true),
+                fill_values = Dict(:investable => true),
             )
             df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
             df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
