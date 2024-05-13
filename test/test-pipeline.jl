@@ -86,11 +86,8 @@ end
             df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
             # NOTE: row order is different, join to determine equality
             cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-            @test ifelse.(
-                ismissing.(cmp.investable_1),
-                cmp.source .== "left_only",
-                cmp.source .== "both",
-            ) |> all
+            @test subset(cmp, :investable_1 => ismissing).source .== "left_only" |> all
+            @test subset(cmp, :investable_1 => !ismissing).source .== "both" |> all
         end
 
         @testset "back-filling missing rows" begin
@@ -98,7 +95,7 @@ end
             df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
             cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
             @test all(cmp.investable .== cmp.investable_1)
-            @test cmp.source |> x -> all(i -> i == "both", x)
+            @test cmp.source .== "both" |> all
         end
 
         @testset "back-filling missing rows w/ alternate values" begin
@@ -112,11 +109,7 @@ end
             )
             df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
             cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-            @test ifelse.(
-                ismissing.(cmp.investable_1),
-                cmp.investable .== true,
-                cmp.investable .== cmp.investable_1,
-            ) |> all
+            @test subset(cmp, :investable_1 => ismissing).investable |> all
         end
     end
 
@@ -186,7 +179,7 @@ end
             # NOTE: row order is different, join to determine equality
             cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
             @test all(cmp.investable .== cmp.investable_1)
-            @test cmp.source |> x -> all(i -> i == "both", x)
+            @test cmp.source .== "both" |> all
         end
 
         @testset "back-filling missing rows w/ alternate values" begin
@@ -202,11 +195,7 @@ end
             df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
             df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
             cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-            @test ifelse.(
-                ismissing.(cmp.investable_1),
-                cmp.investable .== true,
-                cmp.investable .== cmp.investable_1,
-            ) |> all
+            @test subset(cmp, :investable_1 => ismissing).investable |> all
         end
     end
 end
