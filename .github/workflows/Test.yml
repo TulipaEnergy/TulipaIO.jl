@@ -5,14 +5,7 @@ on:
         branches:
             - main
         tags: ["*"]
-    pull_request:
-        branches:
-            - main
-        paths:
-            - "src/**"
-            - "test/**"
-            - "*.toml"
-        types: [opened, synchronize, reopened]
+
     workflow_dispatch:
 
 jobs:
@@ -34,8 +27,8 @@ jobs:
                     - "1"
                 os:
                     - ubuntu-latest
-                    #- macOS-latest
-                    #- windows-latest
+                    - macOS-latest
+                    - windows-latest
                 arch:
                     - x64
                 allow_failure: [false]
