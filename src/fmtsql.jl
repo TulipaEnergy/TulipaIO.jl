@@ -8,7 +8,7 @@ sprintf(fmt::String, args...) = format(Format(fmt), args...)
 
 # quote literals appropriately for SQL
 fmt_quote(item) = "$(item)"
-fmt_quote(item::Union{AbstractString,AbstractChar}) = "'$(item)'"
+fmt_quote(item::Union{AbstractString, AbstractChar}) = "'$(item)'"
 fmt_quote(::Missing) = missing
 
 function fmt_opts(source::String; opts...)
@@ -49,7 +49,7 @@ function fmt_join(
     on::Vector{Symbol},
     cols::Vector{Symbol},
     fill::Bool,
-    fill_values::Union{Missing,Dict} = missing,
+    fill_values::Union{Missing, Dict} = missing,
 )
     exclude = join(cols, ", ")
     if fill

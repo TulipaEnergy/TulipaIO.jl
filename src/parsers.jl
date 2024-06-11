@@ -1,6 +1,6 @@
 import Base: merge
 
-import JSON3
+using JSON3: JSON3
 import PrettyTables: pretty_table
 
 export read_esdl_json
@@ -52,7 +52,7 @@ function resolve!(field, values, errs)
         # check equality when more than one non-null values
         iseq = reduce_unless(
             (r, i) -> r ? isequal(i...) : false,      # proceed iff equal
-            [nonull[i:i+1] for i = 1:num if i < num]; # paired iteration
+            [nonull[i:(i + 1)] for i in 1:num if i < num]; # paired iteration
             init = true,
             sentinel = false,
         )
@@ -106,7 +106,7 @@ function json_get(json, reference::String; trunc::Int = 0)
         length(v) > 1 ? [Symbol(v[1]), 1 + parse(Int, v[2])] : [Symbol(v[1])]
     end
     # NOTE: index 2:end because there is a leading '/'
-    idx = collect(Iterators.flatten(map(to_idx, split(reference, "/@"))))[2:(end-trunc)]
+    idx = collect(Iterators.flatten(map(to_idx, split(reference, "/@"))))[2:(end - trunc)]
     reduce(getindex, idx; init = json) # since $ref is from JSON, assume valid
 end
 
@@ -138,13 +138,13 @@ end
 
 # struct to hold parsed data
 struct Asset
-    initial_capacity::Union{Float64,Nothing}
-    lifetime::Union{Float64,Nothing}
-    initial_storage_level::Union{Float64,Nothing}
-    investment_cost::Union{Float64,Nothing}
-    investment_cost_unit::Union{String,Nothing}
-    variable_cost::Union{Float64,Nothing}
-    variable_cost_unit::Union{String,Nothing}
+    initial_capacity::Union{Float64, Nothing}
+    lifetime::Union{Float64, Nothing}
+    initial_storage_level::Union{Float64, Nothing}
+    investment_cost::Union{Float64, Nothing}
+    investment_cost_unit::Union{String, Nothing}
+    variable_cost::Union{Float64, Nothing}
+    variable_cost_unit::Union{String, Nothing}
 end
 
 # constructor to call different parsers to determine the fields

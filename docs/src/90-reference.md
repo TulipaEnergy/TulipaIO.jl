@@ -1,15 +1,15 @@
-# Reference
+# [Reference](@id reference)
 
 ## Contents
 
 ```@contents
-Pages = ["reference.md"]
+Pages = ["90-reference.md"]
 ```
 
 ## Index
 
 ```@index
-Pages = ["reference.md"]
+Pages = ["90-reference.md"]
 ```
 
 ```@autodocs

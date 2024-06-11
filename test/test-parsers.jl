@@ -1,4 +1,4 @@
-import JSON3
+using JSON3: JSON3
 
 @testset "Parsing utilities" begin
     @testset "reduce_unless" begin
@@ -21,9 +21,9 @@ import JSON3
 
     @testset "merge" begin
         struct Data
-            foo::Union{Int,Nothing}
-            bar::Union{Bool,Nothing}
-            baz::Union{String,Nothing}
+            foo::Union{Int, Nothing}
+            bar::Union{Bool, Nothing}
+            baz::Union{String, Nothing}
         end
         d0 = Data(nothing, nothing, nothing)
         d1 = Data(42, true, "answer")
