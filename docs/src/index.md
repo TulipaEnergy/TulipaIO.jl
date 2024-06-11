@@ -37,3 +37,16 @@ This allows simple conversion to DataFrame as well:
 using DataFrames: DataFrame
 DataFrame(DBInterface.execute(con, "SELECT name, type, investable, variable_cost FROM $table_name WHERE name LIKE 'Asgard_%'"))
 ```
+
+## Contributors
+
+```@raw html
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+```

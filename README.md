@@ -11,6 +11,8 @@
 
 [![Coverage](https://codecov.io/gh/TulipaEnergy/TulipaIO.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/TulipaEnergy/TulipaIO.jl)
 [![DOI](https://zenodo.org/badge/DOI/FIXME)](https://doi.org/FIXME)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![All Contributors](https://img.shields.io/github/all-contributors/TulipaEnergy/TulipaIO.jl?labelColor=5e1ec7&color=c0ffee&style=flat-square))](#contributors)
 
 ## About `TulipaIO.jl` (`TIO`)
 
@@ -41,4 +43,13 @@ Furthermore, you can read specific information for this package at the [TulipaIO
 
 ---
 
-This repo was created with the [COPIERTemplate.jl](https://github.com/abelsiqueira/COPIERTemplate.jl) package.
+### Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
