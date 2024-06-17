@@ -1,4 +1,4 @@
-import TulipaIO
+using TulipaIO: TulipaIO
 
 import Test: @test, @testset, @test_throws
 

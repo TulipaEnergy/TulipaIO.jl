@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier
+AnswerStrategy: minimum
+AuthorEmail: fatkasuvayu+linux@gmail.com
+AuthorName: Suvayu Ali
+Indentation: 4
+JuliaMinVersion: '1.6'
+License: Apache-2.0
+PackageName: TulipaIO
+PackageOwner: TulipaEnergy
+PackageUUID: 7b3808b7-0819-42d4-885c-978ba173db11
+_commit: v0.6.0
+_src_path: https://github.com/abelsiqueira/COPIERTemplate.jl

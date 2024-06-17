@@ -160,7 +160,7 @@ function create_tbl(
     cols::Vector{Symbol},
     variant::String = "",
     fill::Bool = true,
-    fill_values::Union{Missing,Dict} = missing,
+    fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
 )
@@ -225,12 +225,12 @@ All other options behave as the two source version of `create_tbl`.
 function set_tbl_col(
     con::DB,
     source::String,
-    cols::Dict{Symbol,Vector{T}};
+    cols::Dict{Symbol, Vector{T}};
     on::Symbol,
     variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
-) where {T<:Union{Int64,Float64,String,Bool}}
+) where {T <: Union{Int64, Float64, String, Bool}}
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
@@ -247,7 +247,7 @@ function set_tbl_col(
         msg = "Length of index column and values are different\n"
         _cols = [idx, vals]
         data =
-            [get.(_cols, i, "-") for i = 1:maximum(length, _cols)] |>
+            [get.(_cols, i, "-") for i in 1:maximum(length, _cols)] |>
             Iterators.flatten |>
             collect |>
             x -> reshape(x, 2, :) |> permutedims
@@ -292,7 +292,7 @@ function.
 function set_tbl_col(
     con::DB,
     source::String,
-    cols::Dict{Symbol,T};
+    cols::Dict{Symbol, T};
     on::Symbol,
     where_::String = "",
     variant::String = "",

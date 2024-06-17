@@ -1,7 +1,7 @@
 module InfluxDB
 
-import JSON3
-import HTTP
+using JSON3: JSON3
+using HTTP: HTTP
 import DataFrames as DF
 import Dates: DateTime
 

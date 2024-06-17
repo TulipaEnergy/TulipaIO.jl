@@ -1,4 +1,4 @@
-import CSV
+using CSV: CSV
 import DataFrames as DF
 import DuckDB: DB, DBInterface
 
@@ -22,7 +22,7 @@ is returned.  It uniquifies columns with clashing names (see
 `?DF.leftjoin`), and stores a "source" under the `:source` column.
 
 """
-function join_cmp(df1, df2, cols; on::Union{Symbol,Vector{Symbol}})
+function join_cmp(df1, df2, cols; on::Union{Symbol, Vector{Symbol}})
     DF.leftjoin(df1[!, cols], df2[!, cols]; on = on, makeunique = true, source = :source)
 end
 
