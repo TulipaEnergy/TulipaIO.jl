@@ -16,4 +16,11 @@ using CSV, DataFrames, DuckDB, TulipaIO
         @test (DBInterface.execute(connection, "SHOW TABLES") |> DataFrame |> df -> df.name) ==
               ["some_file"]
     end
+
+    @testset "Test show_tables and get_table" begin
+        connection = DBInterface.connect(DuckDB.DB)
+        create_tbl(connection, "data/Norse/assets-data.csv"; name = "my_table")
+        @test show_tables(connection).name == ["my_table"]
+        @test "Asgard_Battery" in get_table(connection, "my_table").name
+    end
 end
