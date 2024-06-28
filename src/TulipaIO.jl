@@ -11,4 +11,7 @@ include("parsers.jl")
 include("fmtsql.jl")
 include("pipeline.jl")
 
+# Convenience functions
+include("convenience.jl")
+
 end
