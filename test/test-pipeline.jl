@@ -1,6 +1,6 @@
 using CSV: CSV
 import DataFrames as DF
-import DuckDB: DB, DBInterface
+import DuckDB: DuckDB as DD, DB, DBInterface
 
 TIO = TulipaIO
 
@@ -72,6 +72,15 @@ end
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
             @test_throws r"not-there" TIO.create_tbl(con, "not-there")
         end
+    end
+
+    @testset "CSV -> DataFrame w/ a schema" begin
+        mapping_csv_path = joinpath(DATA, "Norse/rep-periods-mapping.csv")
+        col_schema = Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE")
+        TIO.create_tbl(con, mapping_csv_path; types = col_schema)
+        df_types = DD.query(con, "DESCRIBE t_rep_periods_mapping") |> DF.DataFrame
+        @test df_types.column_name == ["period", "rep_period", "weight"]
+        @test df_types.column_type == ["INTEGER", "VARCHAR", "DOUBLE"]
     end
 
     @testset "CSV w/ alternatives -> DataFrame" begin

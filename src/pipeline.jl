@@ -97,9 +97,14 @@ function create_tbl(
     name::String = "",
     tmp::Bool = false,
     show::Bool = false,
+    types = Dict(),
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
-    query = fmt_select(fmt_read(source; _read_opts...))
+    kwargs = Dict{Symbol, String}()
+    if length(types) > 0
+        kwargs[:types] = "{" * join(("'$key': '$value'" for (key, value) in types), ",") * "}"
+    end
+    query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
 
     if (length(name) == 0) && !show
         tmp = true
