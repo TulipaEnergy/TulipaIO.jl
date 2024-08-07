@@ -71,6 +71,7 @@ end
         name::String = "",
         tmp::Bool = false,
         show::Bool = false,
+        types = Dict(),
     )
 
 Create a table from a file source (CSV, Parquet, line delimited JSON, etc)
@@ -89,6 +90,10 @@ deleted when you close the connection with DuckDB.
 When `show` is `false`, and `name` was not provided, a table name
 autotomatically generated from the basename of the filename is used.
 This also unconditionally sets the temporary table flag to `true`.
+
+To enforce data types of a column, you can provide the keyword
+argument `types` as a dictionary with column names as keys, and
+corresponding DuckDB types as values.
 
 """
 function create_tbl(
