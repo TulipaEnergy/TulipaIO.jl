@@ -71,6 +71,7 @@ end
         name::String = "",
         tmp::Bool = false,
         show::Bool = false,
+        types = Dict(),
     )
 
 Create a table from a file source (CSV, Parquet, line delimited JSON, etc)
@@ -90,6 +91,10 @@ When `show` is `false`, and `name` was not provided, a table name
 autotomatically generated from the basename of the filename is used.
 This also unconditionally sets the temporary table flag to `true`.
 
+To enforce data types of a column, you can provide the keyword
+argument `types` as a dictionary with column names as keys, and
+corresponding DuckDB types as values.
+
 """
 function create_tbl(
     con::DB,
@@ -97,9 +102,14 @@ function create_tbl(
     name::String = "",
     tmp::Bool = false,
     show::Bool = false,
+    types = Dict(),
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
-    query = fmt_select(fmt_read(source; _read_opts...))
+    kwargs = Dict{Symbol, String}()
+    if length(types) > 0
+        kwargs[:types] = "{" * join(("'$key': '$value'" for (key, value) in types), ",") * "}"
+    end
+    query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
 
     if (length(name) == 0) && !show
         tmp = true

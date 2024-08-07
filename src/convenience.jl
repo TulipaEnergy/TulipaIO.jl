@@ -9,8 +9,17 @@ Read all CSV files in the `folder` and create a table for each in the `connectio
 
 - `table_name_prefix = ""`
 - `table_name_suffix = ""`
+- `schemas = Dict()` Dictionary of dictionaries, where the inner
+  dictionary is a table schema (partial schemas are allowed).  The
+  keys of the outer dictionary are the table names
 """
-function read_csv_folder(connection, folder; table_name_prefix = "", table_name_suffix = "")
+function read_csv_folder(
+    connection,
+    folder;
+    table_name_prefix = "",
+    table_name_suffix = "",
+    schemas = Dict(),
+)
     for filename in readdir(folder)
         if !endswith(".csv")(filename)
             continue
@@ -18,7 +27,9 @@ function read_csv_folder(connection, folder; table_name_prefix = "", table_name_
         table_name, _ = splitext(filename)
         table_name = replace(table_name, "-" => "_")
         table_name = table_name_prefix * table_name * table_name_suffix
-        create_tbl(connection, joinpath(folder, filename); name = table_name)
+
+        types = get(schemas, table_name, Dict())
+        create_tbl(connection, joinpath(folder, filename); name = table_name, types)
     end
 
     return connection
