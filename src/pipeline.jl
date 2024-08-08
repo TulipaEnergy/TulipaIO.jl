@@ -55,13 +55,8 @@ end
 # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
 
 function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show::Bool)
-    if length(name) > 0
-        DBInterface.execute(con, "CREATE $(tmp ? "TEMP" : "") TABLE $name AS $query")
-        return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
-    else # only show
-        res = DBInterface.execute(con, query)
-        return DF.DataFrame(res)
-    end
+    DBInterface.execute(con, "CREATE $(tmp ? "TEMP" : "") TABLE $name AS $query")
+    return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
 end
 
 """
