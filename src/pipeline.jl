@@ -46,23 +46,10 @@ end
 Store() = Store(":memory:")
 DEFAULT = Store()
 
-function tmp_tbl_name(source::String)
+function get_tbl_name(source::String, tmp::Bool)
     name, _ = splitext(basename(source))
     name = replace(name, r"[ ()\[\]{}\\+,.-]+" => "_")
-    "t_$(name)"
-end
-
-function _handle_opts(source::String, name::String, tmp::Bool, ::Val{false})
-    # show = false
-    if (length(name) == 0)
-        tmp = true
-        name = tmp_tbl_name(source)
-    end
-    return name, tmp, false
-end
-
-function _handle_opts(source::String, name::String, tmp::Bool, ::Val{true})
-    return name, tmp, true
+    tmp ? "t_$(name)" : name
 end
 
 # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
@@ -100,9 +87,8 @@ It is also possible to create the table as a temporary table by
 setting the `tmp` flag, i.e. the table is session scoped.  It is
 deleted when you close the connection with DuckDB.
 
-When `show` is `false`, and `name` was not provided, a table name
-autotomatically generated from the basename of the filename is used.
-This also unconditionally sets the temporary table flag to `true`.
+When `show` is `false`, and `name` was not provided, a table name is
+automatically generated from the basename of the filename.
 
 To enforce data types of a column, you can provide the keyword
 argument `types` as a dictionary with column names as keys, and
@@ -124,9 +110,11 @@ function create_tbl(
     end
     query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
 
-    name, tmp, show = _handle_opts(source, name, tmp, Val(show))
+    if (length(name) == 0)
+        name = get_tbl_name(source, tmp)
+    end
 
-    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name, tmp, show)
 end
 
 """
@@ -136,7 +124,7 @@ end
         alt_source::String;
         on::Vector{Symbol},
         cols::Vector{Symbol},
-        variant::String = "",
+        name::String = "",
         fill::Bool = true,
         fill_values::Union{Missing,Dict} = missing,
         tmp::Bool = false,
@@ -150,7 +138,7 @@ a `LEFT JOIN`, i.e. all rows in the base source are retained.
 Either sources can be a table in DuckDB, or a file source as in the
 single source variant.
 
-The resulting table is saved as the table `variant`.  The name of the
+The resulting table is saved as the table `name`.  The name of the
 created table is returned.  The behaviour for `tmp`, and `show` are
 identical to the single source variant.
 
@@ -178,7 +166,7 @@ function create_tbl(
     alt_source::String;
     on::Vector{Symbol},
     cols::Vector{Symbol},
-    variant::String = "",
+    name::String = "",
     fill::Bool = true,
     fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
@@ -187,9 +175,11 @@ function create_tbl(
     sources = [fmt_source(con, src) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
-    variant, tmp, show = _handle_opts(alt_source, variant, tmp, Val(show))
+    if (length(name) == 0)
+        name = get_tbl_name(alt_source, tmp)
+    end
 
-    return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name, tmp, show)
 end
 
 function _get_index(con::DB, source::String, on::Symbol)
@@ -223,15 +213,16 @@ end
         source::String,
         cols::Dict{Symbol,Vector{T}};
         on::Symbol,
-        variant::String = "",
+        name::String,
         tmp::Bool = false,
         show::Bool = false,
     ) where T <: Union{Int64, Float64, String, Bool}
 
 Create a table from a source (either a DuckDB table or a file), where
-a column can be set to the vector provided by `vals`.  This transform
-is very similar to `create_tbl`, except that the alternate source is a
-data structure in Julia.
+columns can be set to vectors provided in a dictionary `cols`.  The
+keys are the new column names, and the vector values are the column
+entries.  This transform is very similar to `create_tbl`, except that
+the alternate source is a data structure in Julia.
 
 The resulting table is saved as the table `name`.  The name of the
 created table is returned.
@@ -244,7 +235,7 @@ function set_tbl_col(
     source::String,
     cols::Dict{Symbol, Vector{T}};
     on::Symbol,
-    variant::String = "",
+    name::String,
     tmp::Bool = false,
     show::Bool = false,
 ) where {T <: Union{Int64, Float64, String, Bool}}
@@ -278,7 +269,7 @@ function set_tbl_col(
         vals;
         on = on,
         col = first(keys(cols)),
-        variant = variant,
+        name = name,
         tmp = tmp,
         show = show,
     )
@@ -290,17 +281,18 @@ end
         source::String,
         cols::Dict{Symbol, T};
         on::Symbol,
-        col::Symbol,
+        name::String,
         where_::String = "",
-        variant::String = "",
         tmp::Bool = false,
         show::Bool = false,
     ) where T
 
 Create a table from a source (either a DuckDB table or a file), where
-a column can be set to the value provided by `value`.  Unlike the
-vector variant of this function, all values of the column are set to
-this value.
+a column can be set to the values provided by the dictionary `cols`.
+The keys are the column names, whereas the values are the column
+entries.  Note that in this case, all entries in a column are set to
+the same value.  Unlike the vector variant of this function, all
+values of the column are set to this value.
 
 All other options and behaviour are same as the vector variant of this
 function.
@@ -311,12 +303,14 @@ function set_tbl_col(
     source::String,
     cols::Dict{Symbol, T};
     on::Symbol,
+    name::String,
     where_::String = "",
-    variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
 ) where {T}
-    variant, tmp, show = _handle_opts(source, variant, tmp, Val(show))
+    if (length(name) == 0)
+        name = get_tbl_name(source, tmp)
+    end
 
     # FIXME: accept NamedTuple|Dict as cols in stead of value & col
     source = fmt_source(con, source)
@@ -326,7 +320,7 @@ function set_tbl_col(
     end
 
     query = fmt_join(source, "($subquery)"; on = [on], cols = [keys(cols)...], fill = true)
-    return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end
 
 function set_tbl_col(
@@ -334,8 +328,8 @@ function set_tbl_col(
     source::String;
     on::Symbol,
     col::Symbol,
+    name::String,
     apply::Function,
-    variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
 ) end
@@ -351,7 +345,9 @@ function select(
     src = fmt_source(con, source)
     query = "SELECT * FROM $src WHERE $expression"
 
-    name, tmp, show = _handle_opts(source, name, tmp, Val(show))
+    if (length(name) == 0)
+        name = get_tbl_name(source, tmp)
+    end
 
     return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end
