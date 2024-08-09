@@ -175,7 +175,7 @@ function create_tbl(
     tmp::Bool = false,
     show::Bool = false,
 )
-    if (check_file(alt_source) && length(name) == 0)
+    if check_file(alt_source) && length(name) == 0
         name = get_tbl_name(alt_source, tmp)
     end
 
@@ -246,7 +246,7 @@ function set_tbl_col(
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
     # as: keys(cols), and values(cols)
-    if (check_file(source) && length(name) == 0)
+    if check_file(source) && length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
@@ -314,7 +314,7 @@ function set_tbl_col(
     tmp::Bool = false,
     show::Bool = false,
 ) where {T}
-    if (check_file(source) && length(name) == 0)
+    if check_file(source) && length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
@@ -350,7 +350,7 @@ function select(
     src = fmt_source(con, source)
     query = "SELECT * FROM $src WHERE $expression"
 
-    if (check_file(source) && length(name) == 0)
+    if check_file(source) && length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
