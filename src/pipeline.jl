@@ -46,22 +46,25 @@ end
 Store() = Store(":memory:")
 DEFAULT = Store()
 
-function tmp_tbl_name(source::String)
+"""
+    get_tbl_name(source::String, tmp::Bool)
+
+Generate table name from a filename by removing special characters.
+If `tmp` is true, then the table name is prefixed by 't_'.
+
+"""
+function get_tbl_name(source::String, tmp::Bool)
     name, _ = splitext(basename(source))
     name = replace(name, r"[ ()\[\]{}\\+,.-]+" => "_")
-    "t_$(name)"
+    tmp ? "t_$(name)" : name
 end
 
 # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
 
 function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show::Bool)
-    if length(name) > 0
-        DBInterface.execute(con, "CREATE $(tmp ? "TEMP" : "") TABLE $name AS $query")
-        return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
-    else # only show
-        res = DBInterface.execute(con, query)
-        return DF.DataFrame(res)
-    end
+    create_table_cmd = "CREATE" * (tmp ? " TEMP" : "") * " TABLE"
+    DBInterface.execute(con, "$create_table_cmd $name AS $query")
+    return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
 end
 
 """
@@ -87,9 +90,8 @@ It is also possible to create the table as a temporary table by
 setting the `tmp` flag, i.e. the table is session scoped.  It is
 deleted when you close the connection with DuckDB.
 
-When `show` is `false`, and `name` was not provided, a table name
-autotomatically generated from the basename of the filename is used.
-This also unconditionally sets the temporary table flag to `true`.
+When `show` is `false`, and `name` was not provided, a table name is
+automatically generated from the basename of the filename.
 
 To enforce data types of a column, you can provide the keyword
 argument `types` as a dictionary with column names as keys, and
@@ -105,18 +107,17 @@ function create_tbl(
     types = Dict(),
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
+    if length(name) == 0
+        name = get_tbl_name(source, tmp)
+    end
+
     kwargs = Dict{Symbol, String}()
     if length(types) > 0
         kwargs[:types] = "{" * join(("'$key': '$value'" for (key, value) in types), ",") * "}"
     end
     query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
 
-    if (length(name) == 0) && !show
-        tmp = true
-        name = tmp_tbl_name(source)
-    end
-
-    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name, tmp, show)
 end
 
 """
@@ -126,7 +127,7 @@ end
         alt_source::String;
         on::Vector{Symbol},
         cols::Vector{Symbol},
-        variant::String = "",
+        name::String = "",
         fill::Bool = true,
         fill_values::Union{Missing,Dict} = missing,
         tmp::Bool = false,
@@ -140,7 +141,7 @@ a `LEFT JOIN`, i.e. all rows in the base source are retained.
 Either sources can be a table in DuckDB, or a file source as in the
 single source variant.
 
-The resulting table is saved as the table `variant`.  The name of the
+The resulting table is saved as the table `name`.  The name of the
 created table is returned.  The behaviour for `tmp`, and `show` are
 identical to the single source variant.
 
@@ -168,21 +169,20 @@ function create_tbl(
     alt_source::String;
     on::Vector{Symbol},
     cols::Vector{Symbol},
-    variant::String = "",
+    name::String = "",
     fill::Bool = true,
     fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
 )
+    if check_file(alt_source) && length(name) == 0
+        name = get_tbl_name(alt_source, tmp)
+    end
+
     sources = [fmt_source(con, src) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
-    if (length(variant) == 0) && !show
-        tmp = true
-        variant = tmp_tbl_name(alt_source)
-    end
-
-    return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name, tmp, show)
 end
 
 function _get_index(con::DB, source::String, on::Symbol)
@@ -216,15 +216,16 @@ end
         source::String,
         cols::Dict{Symbol,Vector{T}};
         on::Symbol,
-        variant::String = "",
+        name::String,
         tmp::Bool = false,
         show::Bool = false,
     ) where T <: Union{Int64, Float64, String, Bool}
 
 Create a table from a source (either a DuckDB table or a file), where
-a column can be set to the vector provided by `vals`.  This transform
-is very similar to `create_tbl`, except that the alternate source is a
-data structure in Julia.
+columns can be set to vectors provided in a dictionary `cols`.  The
+keys are the new column names, and the vector values are the column
+entries.  This transform is very similar to `create_tbl`, except that
+the alternate source is a data structure in Julia.
 
 The resulting table is saved as the table `name`.  The name of the
 created table is returned.
@@ -237,7 +238,7 @@ function set_tbl_col(
     source::String,
     cols::Dict{Symbol, Vector{T}};
     on::Symbol,
-    variant::String = "",
+    name::String,
     tmp::Bool = false,
     show::Bool = false,
 ) where {T <: Union{Int64, Float64, String, Bool}}
@@ -245,6 +246,9 @@ function set_tbl_col(
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
     # as: keys(cols), and values(cols)
+    if check_file(source) && length(name) == 0
+        name = get_tbl_name(source, tmp)
+    end
 
     # for now, support only one column
     if length(cols) > 1
@@ -271,7 +275,7 @@ function set_tbl_col(
         vals;
         on = on,
         col = first(keys(cols)),
-        variant = variant,
+        name = name,
         tmp = tmp,
         show = show,
     )
@@ -283,17 +287,18 @@ end
         source::String,
         cols::Dict{Symbol, T};
         on::Symbol,
-        col::Symbol,
+        name::String = "",
         where_::String = "",
-        variant::String = "",
         tmp::Bool = false,
         show::Bool = false,
     ) where T
 
 Create a table from a source (either a DuckDB table or a file), where
-a column can be set to the value provided by `value`.  Unlike the
-vector variant of this function, all values of the column are set to
-this value.
+a column can be set to the values provided by the dictionary `cols`.
+The keys are the column names, whereas the values are the column
+entries.  Note that in this case, all entries in a column are set to
+the same value.  Unlike the vector variant of this function, all
+values of the column are set to this value.
 
 All other options and behaviour are same as the vector variant of this
 function.
@@ -304,27 +309,23 @@ function set_tbl_col(
     source::String,
     cols::Dict{Symbol, T};
     on::Symbol,
+    name::String = "",
     where_::String = "",
-    variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
 ) where {T}
-    # FIXME: accept NamedTuple|Dict as cols in stead of value & col
+    if check_file(source) && length(name) == 0
+        name = get_tbl_name(source, tmp)
+    end
+
     source = fmt_source(con, source)
     subquery = fmt_select(source; cols...)
     if length(where_) > 0
         subquery *= " WHERE $(where_)"
     end
 
-    # FIXME: resolve String|Symbol schizophrenic API
     query = fmt_join(source, "($subquery)"; on = [on], cols = [keys(cols)...], fill = true)
-
-    if (length(variant) == 0) && !show
-        tmp = true
-        variant = tmp_tbl_name(source)
-    end
-
-    return _create_tbl_impl(con, query; name = variant, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
 end
 
 function set_tbl_col(
@@ -332,8 +333,8 @@ function set_tbl_col(
     source::String;
     on::Symbol,
     col::Symbol,
+    name::String,
     apply::Function,
-    variant::String = "",
     tmp::Bool = false,
     show::Bool = false,
 ) end
@@ -349,9 +350,8 @@ function select(
     src = fmt_source(con, source)
     query = "SELECT * FROM $src WHERE $expression"
 
-    if (length(name) == 0) && !show
-        tmp = true
-        name = tmp_tbl_name(source)
+    if check_file(source) && length(name) == 0
+        name = get_tbl_name(source, tmp)
     end
 
     return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)

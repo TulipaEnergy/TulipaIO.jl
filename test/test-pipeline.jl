@@ -29,14 +29,22 @@ end
 @testset "Utilities" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
 
+    @testset "get_tbl_name(source, tmp)" begin
+        for (name, tmp) in [["my_file", false], ["t_my_file", true]]
+            @test name == TIO.get_tbl_name("path/my-file.csv", tmp)
+        end
+    end
+
     # redundant for the current implementation, needed when we support globs
-    @test TIO.check_file(csv_path)
-    @test !TIO.check_file("not-there")
+    @testset "check_file(source)" begin
+        @test TIO.check_file(csv_path)
+        @test !TIO.check_file("not-there")
+    end
 
     con = DBInterface.connect(DB)
     tbl_name = "mytbl"
 
-    @testset "Check if table exists" begin
+    @testset "check_tbl(con, source)" begin
         DBInterface.execute(con, "CREATE TABLE $tbl_name AS SELECT * FROM range(5)")
         @test TIO.check_tbl(con, tbl_name)
         @test !TIO.check_tbl(con, "not_there")
@@ -63,9 +71,8 @@ end
 
     df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
 
-    con = DBInterface.connect(DB)
-
     @testset "CSV -> DataFrame" begin
+        con = DBInterface.connect(DB)
         df_res = TIO.create_tbl(con, csv_path; show = true)
         @test shape(df_org) == shape(df_res)
         @test_throws TIO.FileNotFoundError TIO.create_tbl(con, "not-there")
@@ -75,55 +82,70 @@ end
     end
 
     @testset "CSV -> DataFrame w/ a schema" begin
+        con = DBInterface.connect(DB)
         mapping_csv_path = joinpath(DATA, "Norse/rep-periods-mapping.csv")
         col_schema = Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE")
         TIO.create_tbl(con, mapping_csv_path; types = col_schema)
-        df_types = DD.query(con, "DESCRIBE t_rep_periods_mapping") |> DF.DataFrame
+        df_types = DD.query(con, "DESCRIBE rep_periods_mapping") |> DF.DataFrame
         @test df_types.column_name == ["period", "rep_period", "weight"]
         @test df_types.column_type == ["INTEGER", "VARCHAR", "DOUBLE"]
     end
 
+    opts = Dict(:on => [:name], :cols => [:investable], :show => true)
     @testset "CSV w/ alternatives -> DataFrame" begin
-        opts = Dict(:on => [:name], :cols => [:investable], :show => true)
+        con = DBInterface.connect(DB)
         df_res = TIO.create_tbl(con, csv_path, csv_copy; opts..., fill = false)
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
+    end
 
-        @testset "no filling for missing rows" begin
-            df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = false)
-            df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
-            # NOTE: row order is different, join to determine equality
-            cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-            @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).source .== "left_only") |>
-                  all
-            @test (DF.subset(cmp, :investable_1 => DF.ByRow(!ismissing)).source .== "both") |> all
-        end
+    @testset "no filling for missing rows" begin
+        con = DBInterface.connect(DB)
+        df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = false)
+        df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+        # NOTE: row order is different, join to determine equality
+        cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
+        @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).source .== "left_only") |> all
+        @test (DF.subset(cmp, :investable_1 => DF.ByRow(!ismissing)).source .== "both") |> all
+    end
 
-        @testset "back-filling missing rows" begin
-            df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = true)
-            df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-            cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
-            @test all(cmp.investable .== cmp.investable_1)
-            @test (cmp.source .== "both") |> all
-        end
+    @testset "back-filling missing rows" begin
+        con = DBInterface.connect(DB)
+        df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = true)
+        df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+        cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
+        @test all(cmp.investable .== cmp.investable_1)
+        @test (cmp.source .== "both") |> all
+    end
 
-        @testset "back-filling missing rows w/ alternate values" begin
-            df_res = TIO.create_tbl(
-                con,
-                csv_path,
-                csv_fill;
-                opts...,
-                fill = true,
-                fill_values = Dict(:investable => true),
-            )
-            df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
-            cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-            @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).investable) |> all
-        end
+    @testset "back-filling missing rows w/ alternate values" begin
+        con = DBInterface.connect(DB)
+        df_res = TIO.create_tbl(
+            con,
+            csv_path,
+            csv_fill;
+            opts...,
+            fill = true,
+            fill_values = Dict(:investable => true),
+        )
+        df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+        cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
+        @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).investable) |> all
+    end
+
+    @testset "temporary tables" begin
+        con = DBInterface.connect(DB)
+        tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
+        @test tbl_name in tmp_tbls(con)[!, :name]
+
+        tbl_name = TIO.create_tbl(con, csv_path; tmp = true)
+        @test tbl_name == "t_assets_data" # t_<cleaned up filename>
+        @test tbl_name in tmp_tbls(con)[!, :name]
     end
 
     @testset "CSV -> table" begin
+        con = DBInterface.connect(DB)
         tbl_name = TIO.create_tbl(con, csv_path; name = "no_assets")
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
         @test shape(df_org) == shape(df_res)
@@ -143,44 +165,27 @@ end
         #      │ String?          String?   Bool?
         # ─────┼───────────────────────────────────
         #    1 │ Asgard_Battery   storage     true
-
-        @testset "temporary tables" begin
-            tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
-            @test tbl_name in tmp_tbls(con)[!, :name]
-
-            tbl_name = TIO.create_tbl(con, csv_path)
-            @test tbl_name in tmp_tbls(con)[!, :name]
-            @test tbl_name == "t_assets_data" # t_<cleaned up filename>
-        end
     end
 
     @testset "table + CSV w/ alternatives -> table" begin
+        # test setup
+        con = DBInterface.connect(DB)
+        TIO.create_tbl(con, csv_path; name = "no_assets")
+
         opts = Dict(:on => [:name], :cols => [:investable])
-        tbl_name = TIO.create_tbl(
-            con,
-            "no_assets",
-            csv_copy;
-            variant = "alt_assets",
-            opts...,
-            fill = false,
-        )
+        tbl_name =
+            TIO.create_tbl(con, "no_assets", csv_copy; name = "alt_assets", opts..., fill = false)
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
-
-        @testset "temporary tables" begin
-            tbl_name = TIO.create_tbl(con, "no_assets", csv_copy; opts...)
-            @test tbl_name in tmp_tbls(con)[!, :name]
-            @test tbl_name == "t_assets_data_copy" # t_<cleaned up filename>
-        end
 
         @testset "back-filling missing rows" begin
             tbl_name = TIO.create_tbl(
                 con,
                 "no_assets",
                 csv_fill;
-                variant = "alt_assets_filled",
+                name = "alt_assets_filled",
                 opts...,
                 fill = true,
             )
@@ -197,7 +202,7 @@ end
                 con,
                 "no_assets",
                 csv_fill;
-                variant = "alt_assets_filled_alt",
+                name = "alt_assets_filled_alt",
                 opts...,
                 fill = true,
                 fill_values = Dict(:investable => true),
@@ -217,10 +222,9 @@ end
 
     df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
 
-    con = DBInterface.connect(DB)
-
-    opts = Dict(:on => :name, :show => true)
+    opts = Dict(:on => :name, :name => "dummy", :show => true)
     @testset "w/ vector" begin
+        con = DBInterface.connect(DB)
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
         df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => df_exp.investable); opts...)
         # NOTE: row order is different, join to determine equality
@@ -238,11 +242,16 @@ end
     end
 
     @testset "w/ constant" begin
+        con = DBInterface.connect(DB)
         df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); opts...)
         @test df_res.investable |> all
+
+        table_name = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); on = :name)
+        @test "assets_data" == table_name
     end
 
     @testset "w/ constant after filtering" begin
+        con = DBInterface.connect(DB)
         where_clause = TIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
         df_res = TIO.set_tbl_col(
             con,
