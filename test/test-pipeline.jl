@@ -31,7 +31,7 @@ end
 
     @testset "get_tbl_name(source, tmp)" begin
         for (name, tmp) in [["my_file", false], ["t_my_file", true]]
-            @test name == TIO.get_tbl_name("my-file.csv", tmp)
+            @test name == TIO.get_tbl_name("path/my-file.csv", tmp)
         end
     end
 

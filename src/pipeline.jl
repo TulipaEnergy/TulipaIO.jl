@@ -55,7 +55,8 @@ end
 # TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
 
 function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show::Bool)
-    DBInterface.execute(con, "CREATE $(tmp ? "TEMP" : "") TABLE $name AS $query")
+    create_table_cmd = "CREATE" * (tmp ? " TEMP" : "") * " TABLE"
+    DBInterface.execute(con, "$create_table_cmd $name AS $query")
     return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
 end
 
@@ -105,7 +106,7 @@ function create_tbl(
     end
     query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
 
-    if (length(name) == 0)
+    if length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
@@ -170,7 +171,7 @@ function create_tbl(
     sources = [fmt_source(con, src) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
-    if (length(name) == 0)
+    if length(name) == 0
         name = get_tbl_name(alt_source, tmp)
     end
 
@@ -303,7 +304,7 @@ function set_tbl_col(
     tmp::Bool = false,
     show::Bool = false,
 ) where {T}
-    if (length(name) == 0)
+    if length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
@@ -340,7 +341,7 @@ function select(
     src = fmt_source(con, source)
     query = "SELECT * FROM $src WHERE $expression"
 
-    if (length(name) == 0)
+    if length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
