@@ -82,6 +82,7 @@ end
     end
 
     @testset "CSV -> DataFrame w/ a schema" begin
+        con = DBInterface.connect(DB)
         mapping_csv_path = joinpath(DATA, "Norse/rep-periods-mapping.csv")
         col_schema = Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE")
         TIO.create_tbl(con, mapping_csv_path; types = col_schema)
@@ -133,8 +134,18 @@ end
         @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).investable) |> all
     end
 
-    con = DBInterface.connect(DB)
+    @testset "temporary tables" begin
+        con = DBInterface.connect(DB)
+        tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
+        @test tbl_name in tmp_tbls(con)[!, :name]
+
+        tbl_name = TIO.create_tbl(con, csv_path; tmp = true)
+        @test tbl_name == "t_assets_data" # t_<cleaned up filename>
+        @test tbl_name in tmp_tbls(con)[!, :name]
+    end
+
     @testset "CSV -> table" begin
+        con = DBInterface.connect(DB)
         tbl_name = TIO.create_tbl(con, csv_path; name = "no_assets")
         df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
         @test shape(df_org) == shape(df_res)
@@ -156,16 +167,11 @@ end
         #    1 │ Asgard_Battery   storage     true
     end
 
-    @testset "temporary tables" begin
-        tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
-        @test tbl_name in tmp_tbls(con)[!, :name]
-
-        tbl_name = TIO.create_tbl(con, csv_path; tmp = true)
-        @test tbl_name == "t_assets_data" # t_<cleaned up filename>
-        @test tbl_name in tmp_tbls(con)[!, :name]
-    end
-
     @testset "table + CSV w/ alternatives -> table" begin
+        # test setup
+        con = DBInterface.connect(DB)
+        TIO.create_tbl(con, csv_path; name = "no_assets")
+
         opts = Dict(:on => [:name], :cols => [:investable])
         tbl_name =
             TIO.create_tbl(con, "no_assets", csv_copy; name = "alt_assets", opts..., fill = false)
