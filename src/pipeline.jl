@@ -107,15 +107,15 @@ function create_tbl(
     types = Dict(),
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
+    if length(name) == 0
+        name = get_tbl_name(source, tmp)
+    end
+
     kwargs = Dict{Symbol, String}()
     if length(types) > 0
         kwargs[:types] = "{" * join(("'$key': '$value'" for (key, value) in types), ",") * "}"
     end
     query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
-
-    if length(name) == 0
-        name = get_tbl_name(source, tmp)
-    end
 
     return _create_tbl_impl(con, query; name, tmp, show)
 end
@@ -175,12 +175,12 @@ function create_tbl(
     tmp::Bool = false,
     show::Bool = false,
 )
-    sources = [fmt_source(con, src) for src in (base_source, alt_source)]
-    query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
-
-    if length(name) == 0
+    if (check_file(alt_source) && length(name) == 0)
         name = get_tbl_name(alt_source, tmp)
     end
+
+    sources = [fmt_source(con, src) for src in (base_source, alt_source)]
+    query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
     return _create_tbl_impl(con, query; name, tmp, show)
 end
@@ -246,6 +246,9 @@ function set_tbl_col(
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
     # as: keys(cols), and values(cols)
+    if (check_file(source) && length(name) == 0)
+        name = get_tbl_name(source, tmp)
+    end
 
     # for now, support only one column
     if length(cols) > 1
@@ -284,7 +287,7 @@ end
         source::String,
         cols::Dict{Symbol, T};
         on::Symbol,
-        name::String,
+        name::String = "",
         where_::String = "",
         tmp::Bool = false,
         show::Bool = false,
@@ -306,16 +309,15 @@ function set_tbl_col(
     source::String,
     cols::Dict{Symbol, T};
     on::Symbol,
-    name::String,
+    name::String = "",
     where_::String = "",
     tmp::Bool = false,
     show::Bool = false,
 ) where {T}
-    if length(name) == 0
+    if (check_file(source) && length(name) == 0)
         name = get_tbl_name(source, tmp)
     end
 
-    # FIXME: accept NamedTuple|Dict as cols in stead of value & col
     source = fmt_source(con, source)
     subquery = fmt_select(source; cols...)
     if length(where_) > 0
@@ -348,7 +350,7 @@ function select(
     src = fmt_source(con, source)
     query = "SELECT * FROM $src WHERE $expression"
 
-    if length(name) == 0
+    if (check_file(source) && length(name) == 0)
         name = get_tbl_name(source, tmp)
     end
 

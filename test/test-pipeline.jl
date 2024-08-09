@@ -239,6 +239,9 @@ end
         con = DBInterface.connect(DB)
         df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); opts...)
         @test df_res.investable |> all
+
+        table_name = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); on = :name)
+        @test "assets_data" == table_name
     end
 
     @testset "w/ constant after filtering" begin
