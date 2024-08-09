@@ -46,6 +46,13 @@ end
 Store() = Store(":memory:")
 DEFAULT = Store()
 
+"""
+    get_tbl_name(source::String, tmp::Bool)
+
+Generate table name from a filename by removing special characters.
+If `tmp` is true, then the table name is prefixed by 't_'.
+
+"""
 function get_tbl_name(source::String, tmp::Bool)
     name, _ = splitext(basename(source))
     name = replace(name, r"[ ()\[\]{}\\+,.-]+" => "_")
