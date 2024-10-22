@@ -202,18 +202,19 @@ connection `con` as the table `name`.  This function can be used with
 a `do`-block like this:
 
 ```jldoctest
-using DuckDB: DBInterface, DB
+using DuckDB: DBInterface, DB, query
+using DataFrames: DataFrame
 
 con = DBInterface.connect(DB)
 
 as_table(con, "mytbl", (;col=collect(1:5))) do con, name
-    DD.query(con, "SELECT col, col+2 as 'shift_2' FROM '\$name'")
+    query(con, "SELECT col, col+2 as 'shift_2' FROM '\$name'")
 end |> DataFrame
 
 # output
 
 5×2 DataFrame
-Row │ col     shift_2
+ Row │ col     shift_2
      │ Int64?  Int64?
 ─────┼─────────────────
    1 │      1        3
