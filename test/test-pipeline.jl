@@ -226,7 +226,7 @@ end
     @testset "w/ vector" begin
         con = DBInterface.connect(DB)
         df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
-        df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => df_exp.investable); opts...)
+        df_res = TIO.create_tbl(con, csv_path, Dict(:investable => df_exp.investable); opts...)
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
         investable = cmp[!, [c for c in propertynames(cmp) if occursin("investable", String(c))]]
@@ -234,32 +234,27 @@ end
 
         # stupid Julia! grow up!
         args = [con, csv_path, Dict(:investable => df_exp.investable[2:end])]
-        @test_throws DimensionMismatch TIO.set_tbl_col(args...; opts...)
+        @test_throws DimensionMismatch TIO.create_tbl(args...; opts...)
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
-            @test_throws r"Length.+different" TIO.set_tbl_col(args...; opts...)
-            @test_throws r"index.+value" TIO.set_tbl_col(args...; opts...)
+            @test_throws r"Length.+different" TIO.create_tbl(args...; opts...)
+            @test_throws r"index.+value" TIO.create_tbl(args...; opts...)
         end
     end
 
     @testset "w/ constant" begin
         con = DBInterface.connect(DB)
-        df_res = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); opts...)
+        df_res = TIO.create_tbl(con, csv_path, Dict(:investable => true); opts...)
         @test df_res.investable |> all
 
-        table_name = TIO.set_tbl_col(con, csv_path, Dict(:investable => true); on = :name)
+        table_name = TIO.create_tbl(con, csv_path, Dict(:investable => true); on = :name)
         @test "assets_data" == table_name
     end
 
     @testset "w/ constant after filtering" begin
         con = DBInterface.connect(DB)
         where_clause = TIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
-        df_res = TIO.set_tbl_col(
-            con,
-            csv_path,
-            Dict(:investable => true);
-            opts...,
-            where_ = where_clause,
-        )
+        df_res =
+            TIO.create_tbl(con, csv_path, Dict(:investable => true); opts..., where_ = where_clause)
         @test shape(df_res) == shape(df_org)
         df_res =
             filter(row -> 25 <= row.lifetime <= 50 && startswith(row.name, "Valhalla_"), df_res)
