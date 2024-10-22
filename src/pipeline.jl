@@ -201,18 +201,27 @@ by first creating a `DataFrame`.  `args...` are passed on to the
 connection `con` as the table `name`.  This function can be used with
 a `do`-block like this:
 
-    julia> as_table(con, "mytbl", (;col=collect(1:5))) do con, name
-               DD.query(con, "SELECT col, col+2 as 'shift_2' FROM '\$name'")
-           end |> DataFrame
-    5×2 DataFrame
-    Row │ col     shift_2
-         │ Int64?  Int64?
-    ─────┼─────────────────
-       1 │      1        3
-       2 │      2        4
-       3 │      3        5
-       4 │      4        6
-       5 │      5        7
+```jldoctest
+using DuckDB: DBInterface, DB
+
+con = DBInterface.connect(DB)
+
+as_table(con, "mytbl", (;col=collect(1:5))) do con, name
+    DD.query(con, "SELECT col, col+2 as 'shift_2' FROM '\$name'")
+end |> DataFrame
+
+# output
+
+5×2 DataFrame
+Row │ col     shift_2
+     │ Int64?  Int64?
+─────┼─────────────────
+   1 │      1        3
+   2 │      2        4
+   3 │      3        5
+   4 │      4        6
+   5 │      5        7
+```
 
 """
 function as_table(op::Function, con::DB, name::String, args...)
