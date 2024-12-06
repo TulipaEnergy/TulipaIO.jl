@@ -1,16 +1,14 @@
-using CSV: CSV
-import DataFrames as DF
-import DuckDB: DuckDB as DD, DB, DBInterface
+using CSV, DataFrames, DuckDB
 
 TIO = TulipaIO
 
-function shape(df::DF.DataFrame)
-    return (DF.nrow(df), DF.ncol(df))
+function shape(df::DataFrame)
+    return (nrow(df), ncol(df))
 end
 
-function tmp_tbls(con::DB)
+function tmp_tbls(con::DuckDB.DB)
     res = DBInterface.execute(con, "SELECT name FROM (SHOW ALL TABLES) WHERE temporary = true")
-    return DF.DataFrame(res)
+    return DataFrame(res)
 end
 
 """
@@ -19,11 +17,11 @@ end
 When row order is different, do a join to determine equality; use the
 columns `cols`, join on `on` (often :name).  The resulting DataFrame
 is returned.  It uniquifies columns with clashing names (see
-`?DF.leftjoin`), and stores a "source" under the `:source` column.
+`?leftjoin`), and stores a "source" under the `:source` column.
 
 """
 function join_cmp(df1, df2, cols; on::Union{Symbol, Vector{Symbol}})
-    DF.leftjoin(df1[!, cols], df2[!, cols]; on = on, makeunique = true, source = :source)
+    leftjoin(df1[!, cols], df2[!, cols]; on = on, makeunique = true, source = :source)
 end
 
 @testset "Utilities" begin
@@ -41,7 +39,7 @@ end
         @test !TIO.check_file("not-there")
     end
 
-    con = DBInterface.connect(DB)
+    con = DBInterface.connect(DuckDB.DB)
     tbl_name = "mytbl"
 
     @testset "check_tbl(con, source)" begin
@@ -69,10 +67,10 @@ end
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
-    df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
+    df_org = DataFrame(CSV.File(csv_path; header = 2))
 
     @testset "CSV -> DataFrame" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         df_res = TIO.create_tbl(con, csv_path; show = true)
         @test shape(df_org) == shape(df_res)
         @test_throws TIO.FileNotFoundError TIO.create_tbl(con, "not-there")
@@ -82,45 +80,45 @@ end
     end
 
     @testset "CSV -> DataFrame w/ a schema" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         mapping_csv_path = joinpath(DATA, "Norse/rep-periods-mapping.csv")
         col_schema = Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE")
         TIO.create_tbl(con, mapping_csv_path; types = col_schema)
-        df_types = DD.query(con, "DESCRIBE rep_periods_mapping") |> DF.DataFrame
+        df_types = DuckDB.query(con, "DESCRIBE rep_periods_mapping") |> DataFrame
         @test df_types.column_name == ["period", "rep_period", "weight"]
         @test df_types.column_type == ["INTEGER", "VARCHAR", "DOUBLE"]
     end
 
     opts = Dict(:on => [:name], :cols => [:investable], :show => true)
     @testset "CSV w/ alternatives -> DataFrame" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         df_res = TIO.create_tbl(con, csv_path, csv_copy; opts..., fill = false)
-        df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
     end
 
     @testset "no filling for missing rows" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = false)
-        df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+        df_ref = DataFrame(CSV.File(csv_fill; header = 2))
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-        @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).source .== "left_only") |> all
-        @test (DF.subset(cmp, :investable_1 => DF.ByRow(!ismissing)).source .== "both") |> all
+        @test (subset(cmp, :investable_1 => ByRow(ismissing)).source .== "left_only") |> all
+        @test (subset(cmp, :investable_1 => ByRow(!ismissing)).source .== "both") |> all
     end
 
     @testset "back-filling missing rows" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         df_res = TIO.create_tbl(con, csv_path, csv_fill; opts..., fill = true)
-        df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
         @test all(cmp.investable .== cmp.investable_1)
         @test (cmp.source .== "both") |> all
     end
 
     @testset "back-filling missing rows w/ alternate values" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         df_res = TIO.create_tbl(
             con,
             csv_path,
@@ -129,13 +127,13 @@ end
             fill = true,
             fill_values = Dict(:investable => true),
         )
-        df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+        df_ref = DataFrame(CSV.File(csv_fill; header = 2))
         cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-        @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).investable) |> all
+        @test (subset(cmp, :investable_1 => ByRow(ismissing)).investable) |> all
     end
 
     @testset "temporary tables" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         tbl_name = TIO.create_tbl(con, csv_path; name = "tmp_assets", tmp = true)
         @test tbl_name in tmp_tbls(con)[!, :name]
 
@@ -145,9 +143,9 @@ end
     end
 
     @testset "CSV -> table" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         tbl_name = TIO.create_tbl(con, csv_path; name = "no_assets")
-        df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
+        df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
         @test shape(df_org) == shape(df_res)
         # @show df_org[1:3, 1:5] df_res[1:3, 1:5]
         #
@@ -169,14 +167,14 @@ end
 
     @testset "table + CSV w/ alternatives -> table" begin
         # test setup
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         TIO.create_tbl(con, csv_path; name = "no_assets")
 
         opts = Dict(:on => [:name], :cols => [:investable])
         tbl_name =
             TIO.create_tbl(con, "no_assets", csv_copy; name = "alt_assets", opts..., fill = false)
-        df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
-        df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+        df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
+        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
 
@@ -189,8 +187,8 @@ end
                 opts...,
                 fill = true,
             )
-            df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
-            df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+            df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
+            df_exp = DataFrame(CSV.File(csv_copy; header = 2))
             # NOTE: row order is different, join to determine equality
             cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
             @test all(cmp.investable .== cmp.investable_1)
@@ -207,10 +205,10 @@ end
                 fill = true,
                 fill_values = Dict(:investable => true),
             )
-            df_res = DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
-            df_ref = DF.DataFrame(CSV.File(csv_fill; header = 2))
+            df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
+            df_ref = DataFrame(CSV.File(csv_fill; header = 2))
             cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
-            @test (DF.subset(cmp, :investable_1 => DF.ByRow(ismissing)).investable) |> all
+            @test (subset(cmp, :investable_1 => ByRow(ismissing)).investable) |> all
         end
     end
 end
@@ -220,12 +218,12 @@ end
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
-    df_org = DF.DataFrame(CSV.File(csv_path; header = 2))
+    df_org = DataFrame(CSV.File(csv_path; header = 2))
 
     opts = Dict(:on => :name, :name => "dummy", :show => true)
     @testset "w/ vector" begin
-        con = DBInterface.connect(DB)
-        df_exp = DF.DataFrame(CSV.File(csv_copy; header = 2))
+        con = DBInterface.connect(DuckDB.DB)
+        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
         df_res = TIO.create_tbl(con, csv_path, Dict(:investable => df_exp.investable); opts...)
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
@@ -242,7 +240,7 @@ end
     end
 
     @testset "w/ constant" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         df_res = TIO.create_tbl(con, csv_path, Dict(:investable => true); opts...)
         @test df_res.investable |> all
 
@@ -251,7 +249,7 @@ end
     end
 
     @testset "w/ constant after filtering" begin
-        con = DBInterface.connect(DB)
+        con = DBInterface.connect(DuckDB.DB)
         where_clause = TIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
         df_res =
             TIO.create_tbl(con, csv_path, Dict(:investable => true); opts..., where_ = where_clause)
