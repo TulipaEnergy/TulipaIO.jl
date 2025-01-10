@@ -1,4 +1,7 @@
-using CSV, DataFrames, DuckDB, TulipaIO
+using CSV: CSV
+using DataFrames: DataFrames, DataFrame
+using DuckDB: DuckDB, DBInterface
+using TulipaIO: TulipaIO
 
 @testset "Test convenience functions" begin
     @testset "Read CSV folder" begin
@@ -12,7 +15,7 @@ using CSV, DataFrames, DuckDB, TulipaIO
         end
 
         connection = DBInterface.connect(DuckDB.DB)
-        read_csv_folder(connection, tmpdir)
+        TulipaIO.read_csv_folder(connection, tmpdir)
         @test (DBInterface.execute(connection, "SHOW TABLES") |> DataFrame |> df -> df.name) ==
               ["some_file"]
     end
@@ -23,7 +26,7 @@ using CSV, DataFrames, DuckDB, TulipaIO
             "rep_periods_mapping" =>
                 Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE"),
         )
-        read_csv_folder(con, "data/Norse"; schemas)
+        TulipaIO.read_csv_folder(con, "data/Norse"; schemas)
         df_types = DuckDB.query(con, "DESCRIBE rep_periods_mapping") |> DataFrame
         @test df_types.column_name == ["period", "rep_period", "weight"]
         @test df_types.column_type == ["INTEGER", "VARCHAR", "DOUBLE"]
@@ -31,8 +34,8 @@ using CSV, DataFrames, DuckDB, TulipaIO
 
     @testset "Test show_tables and get_table" begin
         connection = DBInterface.connect(DuckDB.DB)
-        create_tbl(connection, "data/Norse/assets-data.csv"; name = "my_table")
-        @test show_tables(connection).name == ["my_table"]
-        @test "Asgard_Battery" in get_table(connection, "my_table").name
+        TulipaIO.create_tbl(connection, "data/Norse/assets-data.csv"; name = "my_table")
+        @test TulipaIO.show_tables(connection).name == ["my_table"]
+        @test "Asgard_Battery" in TulipaIO.get_table(connection, "my_table").name
     end
 end

@@ -1,6 +1,5 @@
 using TulipaIO: TulipaIO
-
-import Test: @test, @testset, @test_throws
+using Test: Test, @test, @testset, @test_throws
 
 const DATA = joinpath(@__DIR__, "data")
 
