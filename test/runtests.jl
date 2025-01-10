@@ -1,4 +1,5 @@
-using TulipaIO, Test
+using TulipaIO: TulipaIO
+using Test: Test, @test, @testset, @test_throws
 
 const DATA = joinpath(@__DIR__, "data")
 
