@@ -67,7 +67,7 @@ end
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
-    df_org = DataFrame(CSV.File(csv_path; header = 2))
+    df_org = DataFrame(CSV.File(csv_path))
 
     @testset "CSV -> DataFrame" begin
         con = DBInterface.connect(DuckDB.DB)
@@ -93,7 +93,7 @@ end
     @testset "CSV w/ alternatives -> DataFrame" begin
         con = DBInterface.connect(DuckDB.DB)
         df_res = TulipaIO.create_tbl(con, csv_path, csv_copy; opts..., fill = false)
-        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
+        df_exp = DataFrame(CSV.File(csv_copy))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
     end
@@ -101,7 +101,7 @@ end
     @testset "no filling for missing rows" begin
         con = DBInterface.connect(DuckDB.DB)
         df_res = TulipaIO.create_tbl(con, csv_path, csv_fill; opts..., fill = false)
-        df_ref = DataFrame(CSV.File(csv_fill; header = 2))
+        df_ref = DataFrame(CSV.File(csv_fill))
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
         @test (
@@ -116,7 +116,7 @@ end
     @testset "back-filling missing rows" begin
         con = DBInterface.connect(DuckDB.DB)
         df_res = TulipaIO.create_tbl(con, csv_path, csv_fill; opts..., fill = true)
-        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
+        df_exp = DataFrame(CSV.File(csv_copy))
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
         @test all(cmp.investable .== cmp.investable_1)
         @test (cmp.source .== "both") |> all
@@ -132,7 +132,7 @@ end
             fill = true,
             fill_values = Dict(:investable => true),
         )
-        df_ref = DataFrame(CSV.File(csv_fill; header = 2))
+        df_ref = DataFrame(CSV.File(csv_fill))
         cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
         @test (DataFrames.subset(cmp, :investable_1 => DataFrames.ByRow(ismissing)).investable) |>
               all
@@ -186,7 +186,7 @@ end
             fill = false,
         )
         df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
-        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
+        df_exp = DataFrame(CSV.File(csv_copy))
         @test df_exp.investable == df_res.investable
         @test df_org.investable != df_res.investable
 
@@ -200,7 +200,7 @@ end
                 fill = true,
             )
             df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
-            df_exp = DataFrame(CSV.File(csv_copy; header = 2))
+            df_exp = DataFrame(CSV.File(csv_copy))
             # NOTE: row order is different, join to determine equality
             cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)
             @test all(cmp.investable .== cmp.investable_1)
@@ -218,7 +218,7 @@ end
                 fill_values = Dict(:investable => true),
             )
             df_res = DataFrame(DBInterface.execute(con, "SELECT * FROM $tbl_name"))
-            df_ref = DataFrame(CSV.File(csv_fill; header = 2))
+            df_ref = DataFrame(CSV.File(csv_fill))
             cmp = join_cmp(df_res, df_ref, ["name", "investable"]; on = :name)
             @test (
                 DataFrames.subset(cmp, :investable_1 => DataFrames.ByRow(ismissing)).investable
@@ -232,12 +232,12 @@ end
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
-    df_org = DataFrame(CSV.File(csv_path; header = 2))
+    df_org = DataFrame(CSV.File(csv_path))
 
     opts = Dict(:on => :name, :name => "dummy", :show => true)
     @testset "w/ vector" begin
         con = DBInterface.connect(DuckDB.DB)
-        df_exp = DataFrame(CSV.File(csv_copy; header = 2))
+        df_exp = DataFrame(CSV.File(csv_copy))
         df_res = TulipaIO.create_tbl(con, csv_path, Dict(:investable => df_exp.investable); opts...)
         # NOTE: row order is different, join to determine equality
         cmp = join_cmp(df_exp, df_res, ["name", "investable"]; on = :name)

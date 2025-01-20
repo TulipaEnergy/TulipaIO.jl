@@ -5,8 +5,8 @@ using .FmtSQL: fmt_join, fmt_read, fmt_select
 
 export create_tbl, tbl_select, as_table
 
-# default options (for now)
-_read_opts = pairs((header = true, skip = 1))
+# default options for reading
+_read_opts = pairs((header = true,))
 
 function check_file(source::String)
     # FIXME: handle globs
