@@ -1,4 +1,3 @@
-,asset_name,asset_name,{true;false},{true;false},{true;false},{true;false},kEUR/MWh,kEUR/MW/year,MW,MW,MW,MW,p.u.
 carrier,from_asset,to_asset,active,is_transport,investable,investment_integer,variable_cost,investment_cost,investment_limit,capacity,initial_export_capacity,initial_import_capacity,efficiency
 electricity,Asgard_Battery,Asgard_E_demand,true,false,false,false,0.003,0,0,0,0,0,0.95
 electricity,Asgard_Solar,Asgard_Battery,true,false,false,false,0.001,0,0,0,0,0,0.95
