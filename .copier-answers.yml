@@ -9,4 +9,4 @@ PackageName: TulipaIO
 PackageOwner: TulipaEnergy
 PackageUUID: 7b3808b7-0819-42d4-885c-978ba173db11
 _commit: v0.7.0
-_src_path: https://github.com/abelsiqueira/BestieTemplate.jl
+_src_path: https://github.com/JuliaBesties/BestieTemplate.jl
