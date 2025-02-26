@@ -406,3 +406,19 @@ end
 
 # TODO:
 # - is filtering on columns needed?
+
+"""
+    rename_cols(con::DB, tblname::String; col_remap...)
+
+Rename the columns of a table.  The old to new column name mapping is
+passed as keyword arguments.
+
+"""
+function rename_cols(con::DB, tbl::String; col_remap...)
+    if !check_tbl(con, tbl)
+        throw(TableNotFoundError(con, tbl))
+    end
+    for (old, new) in col_remap
+        DBInterface.execute(con, "ALTER TABLE $(tbl) RENAME COLUMN $(old) to $(new);")
+    end
+end

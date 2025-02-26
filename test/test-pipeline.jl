@@ -293,3 +293,13 @@ end
     @test all(i -> 25 <= i <= 50, df.lifetime)
     @test all(i -> startswith(i, "Valhalla_"), df.name)
 end
+
+@testset "Rename columns" begin
+    con = DBInterface.connect(DuckDB.DB)
+    tbl = "gibberish"
+    query = "CREATE TABLE $(tbl) AS SELECT range, range+2 AS shifted FROM range(5)"
+    DBInterface.execute(con, query)
+    TulipaIO.rename_cols(con, tbl; range = "a", shifted = "b")
+    df = DBInterface.execute(con, "SELECT * FROM $(tbl)") |> DataFrame
+    @test ["a", "b"] == names(df)
+end
