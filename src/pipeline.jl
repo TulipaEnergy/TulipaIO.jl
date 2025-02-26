@@ -103,6 +103,8 @@ functions of DuckDB.  Any options here will override options provided
 earlier, e.g. you can override the default `header=true` option set by
 `TulipaIO`.
 
+TODO: add option to select while creating table
+
 """
 function create_tbl(
     con::DB,
@@ -386,25 +388,21 @@ end
 #     show::Bool = false,
 # ) end
 
-function tbl_select(
-    con::DB,
-    source::String,
-    expression::String;
-    name::String = "",
-    tmp::Bool = false,
-    show::Bool = false,
-    opts...,
-)
+"""
+    select_tbl(con::DB, source::String, expression::String; opts...)
+
+Select a subset of rows from a source (table or file) by passing an
+SQL where clause as `expression`.
+
+All keyword arguments are passed to the `read_*` function if the
+source is a file, ignored otherwise.
+
+"""
+function select_tbl(con::DB, source::String, expression::String; opts...)
     src = fmt_source(con, source; opts...)
     query = "SELECT * FROM $src WHERE $expression"
-
-    if check_file(source) && length(name) == 0
-        name = get_tbl_name(source, tmp)
-    end
-
-    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+    return DBInterface.execute(con, query) |> DF.DataFrame
 end
 
 # TODO:
-# - filter rows (where clause)
-#   - is filtering on columns needed?
+# - is filtering on columns needed?

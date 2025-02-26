@@ -283,3 +283,13 @@ end
         @test df_res.investable |> all
     end
 end
+
+@testset "Select from table" begin
+    csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    con = DBInterface.connect(DuckDB.DB)
+    table_name = TulipaIO.create_tbl(con, csv_path)
+    where_ = TulipaIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
+    df = TulipaIO.select_tbl(con, table_name, where_)
+    @test all(i -> 25 <= i <= 50, df.lifetime)
+    @test all(i -> startswith(i, "Valhalla_"), df.name)
+end
