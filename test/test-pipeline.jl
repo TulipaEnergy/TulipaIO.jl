@@ -303,3 +303,17 @@ end
     df = DBInterface.execute(con, "SELECT * FROM $(tbl)") |> DataFrame
     @test ["a", "b"] == names(df)
 end
+
+@testset "Update table" begin
+    csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    con = DBInterface.connect(DuckDB.DB)
+    table_name = TulipaIO.create_tbl(con, csv_path)
+    cols = Dict(:investable => true, :lifetime => 1)
+    df = TulipaIO.update_tbl(con, table_name, cols; show = true)
+    @test all(i -> i == 1, df.lifetime)
+    @test all(df.investable)
+    @test_throws TulipaIO.TableNotFoundError TulipaIO.update_tbl(con, "not_there", cols)
+    if (VERSION.major >= 1) && (VERSION.minor >= 8)
+        @test_throws r"not_there:.+not found" TulipaIO.update_tbl(con, "not_there", cols)
+    end
+end

@@ -422,3 +422,22 @@ function rename_cols(con::DB, tbl::String; col_remap...)
         DBInterface.execute(con, "ALTER TABLE $(tbl) RENAME COLUMN $(old) to $(new);")
     end
 end
+
+"""
+    update_tbl(con::DB, tbl::String, cols::Dict{Symbol, T}; show = false) where {T}
+
+Update the values of a column in an existing table
+"""
+function update_tbl(con::DB, tbl::String, cols::Dict{Symbol, T}; show = false) where {T}
+    if !check_tbl(con, tbl)
+        throw(TableNotFoundError(con, tbl))
+    end
+
+    for (col, value) in cols
+        DBInterface.execute(con, "UPDATE $tbl SET $col = $value")
+    end
+
+    if show
+        return DBInterface.execute(con, "SELECT * FROM $tbl") |> DF.DataFrame
+    end
+end
