@@ -52,6 +52,8 @@ end
         read_ = TulipaIO.fmt_source(con, csv_path)
         @test occursin("read_csv", read_)
         @test occursin(csv_path, read_)
+        read_ = TulipaIO.fmt_source(con, csv_path; skip = 1)
+        @test occursin("skip=1", read_)
         @test TulipaIO.fmt_source(con, tbl_name) == tbl_name
         @test_throws TulipaIO.NeitherTableNorFileError TulipaIO.fmt_source(con, "not-there")
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
@@ -64,6 +66,7 @@ end
 
 @testset "Read CSV" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    csv_skip = replace(csv_path, "data.csv" => "data-extra-line.csv")
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
@@ -72,6 +75,8 @@ end
     @testset "CSV -> DataFrame" begin
         con = DBInterface.connect(DuckDB.DB)
         df_res = TulipaIO.create_tbl(con, csv_path; show = true)
+        @test shape(df_org) == shape(df_res)
+        df_res = TulipaIO.create_tbl(con, csv_skip; show = true, skip = 1)
         @test shape(df_org) == shape(df_res)
         @test_throws TulipaIO.FileNotFoundError TulipaIO.create_tbl(con, "not-there")
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
@@ -227,7 +232,7 @@ end
     end
 end
 
-@testset "Set table column" begin
+@testset "Set/replace a table column" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")

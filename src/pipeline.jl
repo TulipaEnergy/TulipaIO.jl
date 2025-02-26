@@ -18,11 +18,11 @@ function check_tbl(con::DB, source::String)
     source in df[!, :name]
 end
 
-function fmt_source(con::DB, source::String)
+function fmt_source(con::DB, source::String; opts...)
     if check_tbl(con, source)
         return source
     elseif check_file(source)
-        return fmt_read(source; _read_opts...)
+        return fmt_read(source; _read_opts..., opts...)
     else
         throw(NeitherTableNorFileError(con, source))
     end
@@ -75,6 +75,7 @@ end
         tmp::Bool = false,
         show::Bool = false,
         types = Dict(),
+        opts...
     )
 
 Create a table from a file source (CSV, Parquet, line delimited JSON, etc)
@@ -97,6 +98,11 @@ To enforce data types of a column, you can provide the keyword
 argument `types` as a dictionary with column names as keys, and
 corresponding DuckDB types as values.
 
+Any remaining keyword arguments are passed on to the `read_*` table
+functions of DuckDB.  Any options here will override options provided
+earlier, e.g. you can override the default `header=true` option set by
+`TulipaIO`.
+
 """
 function create_tbl(
     con::DB,
@@ -105,6 +111,7 @@ function create_tbl(
     tmp::Bool = false,
     show::Bool = false,
     types = Dict(),
+    opts...,
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
     if length(name) == 0
@@ -115,7 +122,7 @@ function create_tbl(
     if length(types) > 0
         kwargs[:types] = "{" * join(("'$key': '$value'" for (key, value) in types), ",") * "}"
     end
-    query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
+    query = fmt_select(fmt_read(source; _read_opts..., kwargs..., opts...))
 
     return _create_tbl_impl(con, query; name, tmp, show)
 end
@@ -132,6 +139,7 @@ end
         fill_values::Union{Missing,Dict} = missing,
         tmp::Bool = false,
         show::Bool = false,
+        opts...
     )
 
 Create a table from two sources.  The first is used as the base, and
@@ -162,6 +170,11 @@ TODO: In the future an "error" option would also be supported, to fail
 loudly when the number of rows do not match between the base and
 alternative source.
 
+Any remaining keyword arguments are passed on to the `read_*` table
+functions of DuckDB.  Any options here will override options provided
+earlier, e.g. you can override the default `header=true` option set by
+`TulipaIO`.
+
 """
 function create_tbl(
     con::DB,
@@ -174,12 +187,13 @@ function create_tbl(
     fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
+    opts...,
 )
     if check_file(alt_source) && length(name) == 0
         name = get_tbl_name(alt_source, tmp)
     end
 
-    sources = [fmt_source(con, src) for src in (base_source, alt_source)]
+    sources = [fmt_source(con, src; opts...) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
     return _create_tbl_impl(con, query; name, tmp, show)
@@ -244,6 +258,7 @@ end
         name::String,
         tmp::Bool = false,
         show::Bool = false,
+        opts...
     ) where T <: Union{Int64, Float64, String, Bool}
 
 Create a table from a source (either a DuckDB table or a file), where
@@ -255,7 +270,8 @@ the alternate source is a data structure in Julia.
 The resulting table is saved as the table `name`.  The name of the
 created table is returned.
 
-All other options behave as the two source version of `create_tbl`.
+All other options behave as the two source version of `create_tbl`,
+including additional keyword arguments.
 
 """
 function create_tbl(
@@ -266,6 +282,7 @@ function create_tbl(
     name::String,
     tmp::Bool = false,
     show::Bool = false,
+    opts...,
 ) where {T <: Union{Int64, Float64, String, Bool}}
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
@@ -294,7 +311,18 @@ function create_tbl(
     end
     col_names = keys(cols) |> collect
     as_table(con, "t_$(join(col_names, '_'))", merge(cols, Dict(on => idx))) do con, tname
-        create_tbl(con, source, tname; on = [on], cols = col_names, fill = false, name, tmp, show)
+        create_tbl(
+            con,
+            source,
+            tname;
+            on = [on],
+            cols = col_names,
+            fill = false,
+            name,
+            tmp,
+            show,
+            opts...,
+        )
     end
 end
 
@@ -308,6 +336,7 @@ end
         where_::String = "",
         tmp::Bool = false,
         show::Bool = false,
+        opts...
     ) where T
 
 Create a table from a source (either a DuckDB table or a file), where
@@ -318,7 +347,7 @@ the same value.  Unlike the vector variant of this function, all
 values of the column are set to this value.
 
 All other options and behaviour are same as the vector variant of this
-function.
+function, including additional keyword arguments.
 
 """
 function create_tbl(
@@ -330,12 +359,13 @@ function create_tbl(
     where_::String = "",
     tmp::Bool = false,
     show::Bool = false,
+    opts...,
 ) where {T}
     if check_file(source) && length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
-    source = fmt_source(con, source)
+    source = fmt_source(con, source; opts...)
     subquery = fmt_select(source; cols...)
     if length(where_) > 0
         subquery *= " WHERE $(where_)"
@@ -363,8 +393,9 @@ function tbl_select(
     name::String = "",
     tmp::Bool = false,
     show::Bool = false,
+    opts...,
 )
-    src = fmt_source(con, source)
+    src = fmt_source(con, source; opts...)
     query = "SELECT * FROM $src WHERE $expression"
 
     if check_file(source) && length(name) == 0
