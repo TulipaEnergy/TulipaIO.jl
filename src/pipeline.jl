@@ -424,18 +424,30 @@ function rename_cols(con::DB, tbl::String; col_remap...)
 end
 
 """
-    update_tbl(con::DB, tbl::String, cols::Dict{Symbol, T}; show = false) where {T}
+    update_tbl(
+        con::DB,
+        tbl::String,
+        cols::Dict{Symbol, T};
+        where_::String ="",
+        show = false
+    ) where {T}
 
 Update the values of a column in an existing table
 """
-function update_tbl(con::DB, tbl::String, cols::Dict{Symbol, T}; show = false) where {T}
+function update_tbl(
+    con::DB,
+    tbl::String,
+    cols::Dict{Symbol, T};
+    where_::String = "",
+    show = false,
+) where {T}
     if !check_tbl(con, tbl)
         throw(TableNotFoundError(con, tbl))
     end
 
-    for (col, value) in cols
-        DBInterface.execute(con, "UPDATE $tbl SET $col = $value")
-    end
+    expressions = join(("$key = '$value'" for (key, value) in cols), ",")
+    where_ = (where_ == "" ? "" : " WHERE $where_")
+    DBInterface.execute(con, "UPDATE $tbl SET $expressions $where_")
 
     if show
         return DBInterface.execute(con, "SELECT * FROM $tbl") |> DF.DataFrame
