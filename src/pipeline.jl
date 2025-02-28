@@ -453,3 +453,9 @@ function update_tbl(
         return DBInterface.execute(con, "SELECT * FROM $tbl") |> DF.DataFrame
     end
 end
+
+function tbl_cols(con::DB, tbl::String)
+    # other columns: data_type, column_default
+    query = "select column_name from information_schema.columns where table_name='$tbl'"
+    return DBInterface.execute(con, query) |> DF.DataFrame
+end

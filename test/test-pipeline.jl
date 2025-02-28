@@ -317,3 +317,11 @@ end
         @test_throws r"not_there:.+not found" TulipaIO.update_tbl(con, "not_there", cols)
     end
 end
+
+@testset "Get column names of a table" begin
+    csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    con = DBInterface.connect(DuckDB.DB)
+    table_name = TulipaIO.create_tbl(con, csv_path)
+    @test (CSV.File(csv_path) |> DataFrame |> names) ==
+          TulipaIO.tbl_cols(con, table_name).column_name
+end
