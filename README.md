@@ -12,7 +12,7 @@
 [![Coverage](https://codecov.io/gh/TulipaEnergy/TulipaIO.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/TulipaEnergy/TulipaIO.jl)
 [![DOI](https://zenodo.org/badge/756428717.svg)](https://doi.org/10.5281/zenodo.11178467)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-[![All Contributors](https://img.shields.io/github/all-contributors/TulipaEnergy/TulipaIO.jl?labelColor=5e1ec7&color=c0ffee&style=flat-square))](#contributors)
+[![All Contributors](https://img.shields.io/github/all-contributors/TulipaEnergy/TulipaIO.jl?labelColor=5e1ec7&color=c0ffee&style=flat-square)](#contributors)
 
 ## About `TulipaIO.jl` (`TIO`)
 
