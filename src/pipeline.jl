@@ -416,9 +416,8 @@ passed as keyword arguments.
 
 """
 function rename_cols(con::DB, tbl::String; col_remap...)
-    if !check_tbl(con, tbl)
-        throw(TableNotFoundError(con, tbl))
-    end
+    check_tbl(con, tbl) ? true : throw(TableNotFoundError(con, tbl))
+
     for (old, new) in col_remap
         DBInterface.execute(con, "ALTER TABLE $(tbl) RENAME COLUMN $(old) to $(new);")
     end
@@ -442,9 +441,7 @@ function update_tbl(
     where_::String = "",
     show = false,
 ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
-    if !check_tbl(con, tbl)
-        throw(TableNotFoundError(con, tbl))
-    end
+    check_tbl(con, tbl) ? true : throw(TableNotFoundError(con, tbl))
 
     expressions = join(("$key = '$value'" for (key, value) in cols), ",")
     where_ = (where_ == "" ? "" : "WHERE $where_")
