@@ -255,13 +255,13 @@ end
     create_tbl(
         con::DB,
         source::String,
-        cols::Dict{Symbol,Vector{T}};
+        cols::Dict{K, Vector{V}};
         on::Symbol,
         name::String,
         tmp::Bool = false,
         show::Bool = false,
         opts...
-    ) where T <: Union{Int64, Float64, String, Bool}
+    ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
 
 Create a table from a source (either a DuckDB table or a file), where
 columns can be set to vectors provided in a dictionary `cols`.  The
@@ -279,13 +279,13 @@ including additional keyword arguments.
 function create_tbl(
     con::DB,
     source::String,
-    cols::Dict{Symbol, Vector{T}};
+    cols::Dict{K, Vector{V}};
     on::Symbol,
     name::String,
     tmp::Bool = false,
     show::Bool = false,
     opts...,
-) where {T <: Union{Int64, Float64, String, Bool}}
+) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
@@ -332,14 +332,14 @@ end
     create_tbl(
         con::DB,
         source::String,
-        cols::Dict{Symbol, T};
+        cols::Dict{K, V};
         on::Symbol,
         name::String = "",
         where_::String = "",
         tmp::Bool = false,
         show::Bool = false,
         opts...
-    ) where T
+    ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
 
 Create a table from a source (either a DuckDB table or a file), where
 a column can be set to the values provided by the dictionary `cols`.
@@ -355,14 +355,14 @@ function, including additional keyword arguments.
 function create_tbl(
     con::DB,
     source::String,
-    cols::Dict{Symbol, T};
+    cols::Dict{K, V};
     on::Symbol,
     name::String = "",
     where_::String = "",
     tmp::Bool = false,
     show::Bool = false,
     opts...,
-) where {T}
+) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     if check_file(source) && length(name) == 0
         name = get_tbl_name(source, tmp)
     end
@@ -427,20 +427,20 @@ end
     update_tbl(
         con::DB,
         tbl::String,
-        cols::Dict{Symbol, T};
+        cols::Dict{K, V};
         where_::String ="",
         show = false
-    ) where {T}
+    ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
 
 Update the values of a column in an existing table
 """
 function update_tbl(
     con::DB,
     tbl::String,
-    cols::Dict{Symbol, T};
+    cols::Dict{K, V};
     where_::String = "",
     show = false,
-) where {T}
+) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     if !check_tbl(con, tbl)
         throw(TableNotFoundError(con, tbl))
     end
