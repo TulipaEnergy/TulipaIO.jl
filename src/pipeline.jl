@@ -389,18 +389,18 @@ end
 # ) end
 
 """
-    select_tbl(con::DB, source::String, expression::String; opts...)
+    select_tbl(con::DB, source::String, where_::String; opts...)
 
 Select a subset of rows from a source (table or file) by passing an
-SQL where clause as `expression`.
+SQL where clause as `where_`.
 
 All keyword arguments are passed to the `read_*` function if the
 source is a file, ignored otherwise.
 
 """
-function select_tbl(con::DB, source::String, expression::String; opts...)
+function select_tbl(con::DB, source::String, where_::String; opts...)
     src = fmt_source(con, source; opts...)
-    query = "SELECT * FROM $src WHERE $expression"
+    query = "SELECT * FROM $src WHERE $where_"
     return DBInterface.execute(con, query) |> DF.DataFrame
 end
 
@@ -446,7 +446,7 @@ function update_tbl(
     end
 
     expressions = join(("$key = '$value'" for (key, value) in cols), ",")
-    where_ = (where_ == "" ? "" : " WHERE $where_")
+    where_ = (where_ == "" ? "" : "WHERE $where_")
     DBInterface.execute(con, "UPDATE $tbl SET $expressions $where_")
 
     if show
