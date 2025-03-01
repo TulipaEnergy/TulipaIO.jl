@@ -35,7 +35,7 @@ end
 function fmt_select(source::String; cols...)
     alts = if length(cols) > 0
         exclude = join(keys(cols), ", ")
-        include = join([sprintf("%s AS %s", fmt_quote(p[2]), p[1]) for p in cols], ", ")
+        include = join([sprintf("%s AS %s", fmt_quote(v), k) for (k, v) in cols], ", ")
         "EXCLUDE ($exclude), $include"
     else
         ""
@@ -104,7 +104,7 @@ macro where_(exprs...)
                 rhs = sprintf("(%s)", join([sprintf(fmt_quote(rhs[1]), i) for i in rhs], ", "))
             else
                 # FIXME: clearer exception
-                throw(TypeError("$(rhs): not a range or array type"))
+                throw(TypeError(rhs, "$(lhs) in $(rhs)", Union{AbstractRange, Array}, rhs))
             end
         else
             rhs = fmt_quote(rhs)
