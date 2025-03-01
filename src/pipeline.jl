@@ -1,5 +1,6 @@
 using DataFrames: DataFrames as DF
 using DuckDB: DB, DBInterface, Stmt, register_data_frame, unregister_data_frame
+using Glob: glob
 
 using .FmtSQL: fmt_join, fmt_read, fmt_select
 
@@ -9,8 +10,8 @@ export create_tbl, tbl_select, as_table
 _read_opts = pairs((header = true,))
 
 function check_file(source::String)
-    # FIXME: handle globs
-    isfile(source)
+    files = glob(relpath(source, pwd()))
+    length(files) > 0
 end
 
 function check_tbl(con::DB, source::String)
