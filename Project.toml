@@ -17,8 +17,8 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 [compat]
 CSV = "0.10"
 DataFrames = "1"
-DuckDB = "0.10, ~1.0" # ~1.0 until they fix https://github.com/duckdb/duckdb/issues/13911
-DuckDB_jll = "0.10, ~1.0" # DuckDB 1.0.0 still allows DuckDB_jll 1.1.0
+DuckDB = "0.10, ~1.0, 1"
+DuckDB_jll = "0.10, ~1.0"
 HTTP = "1"
 JSON3 = "1"
 PrettyTables = "2"
