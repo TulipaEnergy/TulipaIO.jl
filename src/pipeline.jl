@@ -452,6 +452,29 @@ function update_tbl(
     end
 end
 
+"""
+    tbl_cols(con::DB, tbl::String)
+
+Return all the column names for the given table as a DataFrame.
+
+Example:
+```jldoctest
+using DuckDB, TulipaIO
+con = DBInterface.connect(DuckDB.DB)
+DBInterface.execute(con, "CREATE TABLE mytbl AS SELECT range AS a, range+2 AS b FROM range(3)")
+TulipaIO.tbl_cols(con, "mytbl")
+
+# output
+
+2×1 DataFrame
+ Row │ column_name
+     │ String?
+─────┼─────────────
+   1 │ a
+   2 │ b
+```
+
+"""
 function tbl_cols(con::DB, tbl::String)
     # other columns: data_type, column_default
     query = "select column_name from information_schema.columns where table_name='$tbl'"

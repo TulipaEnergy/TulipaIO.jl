@@ -103,7 +103,6 @@ macro where_(exprs...)
             elseif length(rhs) > 1
                 rhs = sprintf("(%s)", join([sprintf(fmt_quote(rhs[1]), i) for i in rhs], ", "))
             else
-                # FIXME: clearer exception
                 throw(TypeError(rhs, "$(lhs) in $(rhs)", Union{AbstractRange, Array}, rhs))
             end
         else
