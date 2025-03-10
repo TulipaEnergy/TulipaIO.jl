@@ -399,9 +399,10 @@ All keyword arguments are passed to the `read_*` function if the
 source is a file, ignored otherwise.
 
 """
-function select_tbl(con::DB, source::String, where_::String; opts...)
+function select_tbl(con::DB, source::String; where_::String = "", opts...)
     src = fmt_source(con, source; opts...)
-    query = "SELECT * FROM $src WHERE $where_"
+    where_ = (where_ == "" ? "" : "WHERE $where_")
+    query = "SELECT * FROM $src $where_"
     return DBInterface.execute(con, query) |> DF.DataFrame
 end
 
