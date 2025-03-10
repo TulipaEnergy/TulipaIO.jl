@@ -469,7 +469,7 @@ TulipaIO.tbl_cols(con, "mytbl")
 
 2×1 DataFrame
  Row │ column_name
-     │ String?
+     │ String
 ─────┼─────────────
    1 │ a
    2 │ b
