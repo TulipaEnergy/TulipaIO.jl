@@ -1,5 +1,6 @@
 using DataFrames: DataFrames as DF
 using DuckDB: DB, DBInterface, Stmt, register_data_frame, unregister_data_frame
+using Glob: glob
 
 using .FmtSQL: fmt_join, fmt_read, fmt_select
 
@@ -9,8 +10,8 @@ export create_tbl, tbl_select, as_table
 _read_opts = pairs((header = true,))
 
 function check_file(source::String)
-    # FIXME: handle globs
-    isfile(source)
+    files = glob(relpath(source, pwd()))
+    length(files) > 0
 end
 
 function check_tbl(con::DB, source::String)
@@ -18,11 +19,11 @@ function check_tbl(con::DB, source::String)
     source in df[!, :name]
 end
 
-function fmt_source(con::DB, source::String)
+function fmt_source(con::DB, source::String; opts...)
     if check_tbl(con, source)
         return source
     elseif check_file(source)
-        return fmt_read(source; _read_opts...)
+        return fmt_read(source; _read_opts..., opts...)
     else
         throw(NeitherTableNorFileError(con, source))
     end
@@ -75,6 +76,7 @@ end
         tmp::Bool = false,
         show::Bool = false,
         types = Dict(),
+        opts...
     )
 
 Create a table from a file source (CSV, Parquet, line delimited JSON, etc)
@@ -97,6 +99,13 @@ To enforce data types of a column, you can provide the keyword
 argument `types` as a dictionary with column names as keys, and
 corresponding DuckDB types as values.
 
+Any remaining keyword arguments are passed on to the `read_*` table
+functions of DuckDB.  Any options here will override options provided
+earlier, e.g. you can override the default `header=true` option set by
+`TulipaIO`.
+
+TODO: add option to select while creating table
+
 """
 function create_tbl(
     con::DB,
@@ -105,6 +114,7 @@ function create_tbl(
     tmp::Bool = false,
     show::Bool = false,
     types = Dict(),
+    opts...,
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
     if length(name) == 0
@@ -115,7 +125,7 @@ function create_tbl(
     if length(types) > 0
         kwargs[:types] = "{" * join(("'$key': '$value'" for (key, value) in types), ",") * "}"
     end
-    query = fmt_select(fmt_read(source; _read_opts..., kwargs...))
+    query = fmt_select(fmt_read(source; _read_opts..., kwargs..., opts...))
 
     return _create_tbl_impl(con, query; name, tmp, show)
 end
@@ -132,6 +142,7 @@ end
         fill_values::Union{Missing,Dict} = missing,
         tmp::Bool = false,
         show::Bool = false,
+        opts...
     )
 
 Create a table from two sources.  The first is used as the base, and
@@ -162,6 +173,11 @@ TODO: In the future an "error" option would also be supported, to fail
 loudly when the number of rows do not match between the base and
 alternative source.
 
+Any remaining keyword arguments are passed on to the `read_*` table
+functions of DuckDB.  Any options here will override options provided
+earlier, e.g. you can override the default `header=true` option set by
+`TulipaIO`.
+
 """
 function create_tbl(
     con::DB,
@@ -174,12 +190,13 @@ function create_tbl(
     fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
+    opts...,
 )
     if check_file(alt_source) && length(name) == 0
         name = get_tbl_name(alt_source, tmp)
     end
 
-    sources = [fmt_source(con, src) for src in (base_source, alt_source)]
+    sources = [fmt_source(con, src; opts...) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
     return _create_tbl_impl(con, query; name, tmp, show)
@@ -239,12 +256,13 @@ end
     create_tbl(
         con::DB,
         source::String,
-        cols::Dict{Symbol,Vector{T}};
+        cols::Dict{K, Vector{V}};
         on::Symbol,
         name::String,
         tmp::Bool = false,
         show::Bool = false,
-    ) where T <: Union{Int64, Float64, String, Bool}
+        opts...
+    ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
 
 Create a table from a source (either a DuckDB table or a file), where
 columns can be set to vectors provided in a dictionary `cols`.  The
@@ -255,18 +273,20 @@ the alternate source is a data structure in Julia.
 The resulting table is saved as the table `name`.  The name of the
 created table is returned.
 
-All other options behave as the two source version of `create_tbl`.
+All other options behave as the two source version of `create_tbl`,
+including additional keyword arguments.
 
 """
 function create_tbl(
     con::DB,
     source::String,
-    cols::Dict{Symbol, Vector{T}};
+    cols::Dict{K, Vector{V}};
     on::Symbol,
     name::String,
     tmp::Bool = false,
     show::Bool = false,
-) where {T <: Union{Int64, Float64, String, Bool}}
+    opts...,
+) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     # TODO: is it worth it to have the ability to set multiple
     # columns?  If such a feature is required, we can use
     # cols::Dict{Symbol, Vector{Any}}, and get the cols and vals
@@ -294,7 +314,18 @@ function create_tbl(
     end
     col_names = keys(cols) |> collect
     as_table(con, "t_$(join(col_names, '_'))", merge(cols, Dict(on => idx))) do con, tname
-        create_tbl(con, source, tname; on = [on], cols = col_names, fill = false, name, tmp, show)
+        create_tbl(
+            con,
+            source,
+            tname;
+            on = [on],
+            cols = col_names,
+            fill = false,
+            name,
+            tmp,
+            show,
+            opts...,
+        )
     end
 end
 
@@ -302,13 +333,14 @@ end
     create_tbl(
         con::DB,
         source::String,
-        cols::Dict{Symbol, T};
+        cols::Dict{K, V};
         on::Symbol,
         name::String = "",
         where_::String = "",
         tmp::Bool = false,
         show::Bool = false,
-    ) where T
+        opts...
+    ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
 
 Create a table from a source (either a DuckDB table or a file), where
 a column can be set to the values provided by the dictionary `cols`.
@@ -318,24 +350,25 @@ the same value.  Unlike the vector variant of this function, all
 values of the column are set to this value.
 
 All other options and behaviour are same as the vector variant of this
-function.
+function, including additional keyword arguments.
 
 """
 function create_tbl(
     con::DB,
     source::String,
-    cols::Dict{Symbol, T};
+    cols::Dict{K, V};
     on::Symbol,
     name::String = "",
     where_::String = "",
     tmp::Bool = false,
     show::Bool = false,
-) where {T}
+    opts...,
+) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     if check_file(source) && length(name) == 0
         name = get_tbl_name(source, tmp)
     end
 
-    source = fmt_source(con, source)
+    source = fmt_source(con, source; opts...)
     subquery = fmt_select(source; cols...)
     if length(where_) > 0
         subquery *= " WHERE $(where_)"
@@ -356,24 +389,95 @@ end
 #     show::Bool = false,
 # ) end
 
-function tbl_select(
-    con::DB,
-    source::String,
-    expression::String;
-    name::String = "",
-    tmp::Bool = false,
-    show::Bool = false,
-)
-    src = fmt_source(con, source)
-    query = "SELECT * FROM $src WHERE $expression"
+"""
+    select_tbl(con::DB, source::String, where_::String; opts...)
 
-    if check_file(source) && length(name) == 0
-        name = get_tbl_name(source, tmp)
-    end
+Select a subset of rows from a source (table or file) by passing an
+SQL where clause as `where_`.
 
-    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+All keyword arguments are passed to the `read_*` function if the
+source is a file, ignored otherwise.
+
+"""
+function select_tbl(con::DB, source::String; where_::String = "", opts...)
+    src = fmt_source(con, source; opts...)
+    where_ = (where_ == "" ? "" : "WHERE $where_")
+    query = "SELECT * FROM $src $where_"
+    return DBInterface.execute(con, query) |> DF.DataFrame
 end
 
 # TODO:
-# - filter rows (where clause)
-#   - is filtering on columns needed?
+# - is filtering on columns needed?
+
+"""
+    rename_cols(con::DB, tblname::String; col_remap...)
+
+Rename the columns of a table.  The old to new column name mapping is
+passed as keyword arguments.
+
+"""
+function rename_cols(con::DB, tbl::String; col_remap...)
+    check_tbl(con, tbl) ? true : throw(TableNotFoundError(con, tbl))
+
+    for (old, new) in col_remap
+        DBInterface.execute(con, "ALTER TABLE $(tbl) RENAME COLUMN $(old) to $(new);")
+    end
+end
+
+"""
+    update_tbl(
+        con::DB,
+        tbl::String,
+        cols::Dict{K, V};
+        where_::String ="",
+        show = false
+    ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
+
+Update the values of a column in an existing table
+"""
+function update_tbl(
+    con::DB,
+    tbl::String,
+    cols::Dict{K, V};
+    where_::String = "",
+    show = false,
+) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
+    check_tbl(con, tbl) ? true : throw(TableNotFoundError(con, tbl))
+
+    expressions = join(("$key = '$value'" for (key, value) in cols), ",")
+    where_ = (where_ == "" ? "" : "WHERE $where_")
+    DBInterface.execute(con, "UPDATE $tbl SET $expressions $where_")
+
+    if show
+        return DBInterface.execute(con, "SELECT * FROM $tbl") |> DF.DataFrame
+    end
+end
+
+"""
+    tbl_cols(con::DB, tbl::String)
+
+Return all the column names for the given table as a DataFrame.
+
+Example:
+```jldoctest
+using DuckDB, TulipaIO
+con = DBInterface.connect(DuckDB.DB)
+DBInterface.execute(con, "CREATE TABLE mytbl AS SELECT range AS a, range+2 AS b FROM range(3)")
+TulipaIO.tbl_cols(con, "mytbl")
+
+# output
+
+2×1 DataFrame
+ Row │ column_name
+     │ String
+─────┼─────────────
+   1 │ a
+   2 │ b
+```
+
+"""
+function tbl_cols(con::DB, tbl::String)
+    # other columns: data_type, column_default
+    query = "select column_name from information_schema.columns where table_name='$tbl'"
+    return DBInterface.execute(con, query) |> DF.DataFrame
+end

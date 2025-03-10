@@ -52,6 +52,8 @@ end
         read_ = TulipaIO.fmt_source(con, csv_path)
         @test occursin("read_csv", read_)
         @test occursin(csv_path, read_)
+        read_ = TulipaIO.fmt_source(con, csv_path; skip = 1)
+        @test occursin("skip=1", read_)
         @test TulipaIO.fmt_source(con, tbl_name) == tbl_name
         @test_throws TulipaIO.NeitherTableNorFileError TulipaIO.fmt_source(con, "not-there")
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
@@ -64,6 +66,7 @@ end
 
 @testset "Read CSV" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    csv_skip = replace(csv_path, "data.csv" => "data-extra-line.csv")
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
 
@@ -72,6 +75,8 @@ end
     @testset "CSV -> DataFrame" begin
         con = DBInterface.connect(DuckDB.DB)
         df_res = TulipaIO.create_tbl(con, csv_path; show = true)
+        @test shape(df_org) == shape(df_res)
+        df_res = TulipaIO.create_tbl(con, csv_skip; show = true, skip = 1)
         @test shape(df_org) == shape(df_res)
         @test_throws TulipaIO.FileNotFoundError TulipaIO.create_tbl(con, "not-there")
         if (VERSION.major >= 1) && (VERSION.minor >= 8)
@@ -227,7 +232,7 @@ end
     end
 end
 
-@testset "Set table column" begin
+@testset "Set/replace a table column" begin
     csv_path = joinpath(DATA, "Norse/assets-data.csv")
     csv_copy = replace(csv_path, "data.csv" => "data-copy.csv")
     csv_fill = replace(csv_path, "data.csv" => "data-alt.csv")
@@ -277,4 +282,48 @@ end
             filter(row -> 25 <= row.lifetime <= 50 && startswith(row.name, "Valhalla_"), df_res)
         @test df_res.investable |> all
     end
+end
+
+@testset "Select from table" begin
+    csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    con = DBInterface.connect(DuckDB.DB)
+    table_name = TulipaIO.create_tbl(con, csv_path)
+    where_ = TulipaIO.FmtSQL.@where_(lifetime in 25:50, name % "Valhalla_%")
+    df = TulipaIO.select_tbl(con, table_name; where_)
+    @test all(i -> 25 <= i <= 50, df.lifetime)
+    @test all(i -> startswith(i, "Valhalla_"), df.name)
+    df = TulipaIO.select_tbl(con, table_name)
+    @test shape(df) == (22, 21)
+end
+
+@testset "Rename columns" begin
+    con = DBInterface.connect(DuckDB.DB)
+    tbl = "gibberish"
+    query = "CREATE TABLE $(tbl) AS SELECT range, range+2 AS shifted FROM range(5)"
+    DBInterface.execute(con, query)
+    TulipaIO.rename_cols(con, tbl; range = "a", shifted = "b")
+    df = DBInterface.execute(con, "SELECT * FROM $(tbl)") |> DataFrame
+    @test ["a", "b"] == names(df)
+end
+
+@testset "Update table" begin
+    csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    con = DBInterface.connect(DuckDB.DB)
+    table_name = TulipaIO.create_tbl(con, csv_path)
+    cols = Dict(:investable => true, :lifetime => 1)
+    df = TulipaIO.update_tbl(con, table_name, cols; show = true)
+    @test all(i -> i == 1, df.lifetime)
+    @test all(df.investable)
+    @test_throws TulipaIO.TableNotFoundError TulipaIO.update_tbl(con, "not_there", cols)
+    if (VERSION.major >= 1) && (VERSION.minor >= 8)
+        @test_throws r"not_there:.+not found" TulipaIO.update_tbl(con, "not_there", cols)
+    end
+end
+
+@testset "Get column names of a table" begin
+    csv_path = joinpath(DATA, "Norse/assets-data.csv")
+    con = DBInterface.connect(DuckDB.DB)
+    table_name = TulipaIO.create_tbl(con, csv_path)
+    @test (CSV.File(csv_path) |> DataFrame |> names) ==
+          TulipaIO.tbl_cols(con, table_name).column_name
 end
