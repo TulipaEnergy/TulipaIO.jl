@@ -12,6 +12,7 @@ Read all CSV files in the `folder` and create a table for each in the `connectio
 - `schemas = Dict()` Dictionary of dictionaries, where the inner
   dictionary is a table schema (partial schemas are allowed).  The
   keys of the outer dictionary are the table names
+- opts... are keyword options that are passed on to DuckDB's `read_csv` function
 """
 function read_csv_folder(
     connection,
@@ -19,6 +20,7 @@ function read_csv_folder(
     table_name_prefix = "",
     table_name_suffix = "",
     schemas = Dict(),
+    opts...,
 )
     for filename in readdir(folder)
         if !endswith(".csv")(filename)
@@ -29,7 +31,7 @@ function read_csv_folder(
         table_name = table_name_prefix * table_name * table_name_suffix
 
         types = get(schemas, table_name, Dict())
-        create_tbl(connection, joinpath(folder, filename); name = table_name, types)
+        create_tbl(connection, joinpath(folder, filename); name = table_name, types, opts...)
     end
 
     return connection
