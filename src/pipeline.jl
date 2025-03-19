@@ -4,7 +4,7 @@ using Glob: glob
 
 using .FmtSQL: fmt_join, fmt_read, fmt_select
 
-export create_tbl, tbl_select, as_table, select_tbl, rename_cols, update_tbl, tbl_cols
+export create_tbl, as_table, select_tbl, rename_cols, update_tbl, tbl_cols
 
 # default options for reading
 _read_opts = pairs((header = true,))
