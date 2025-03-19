@@ -9,8 +9,12 @@ export create_tbl, tbl_select, as_table, select_tbl, rename_cols, update_tbl, tb
 # default options for reading
 _read_opts = pairs((header = true,))
 
+to_posix(path::String) = replace(path, "\\" => "/")
+
 function check_file(source::String)
-    files = glob(relpath(source, pwd()))
+    # NOTE: this is necessary since `glob` accepts only POSIX paths
+    # regardless of platform
+    files = source |> relpath |> to_posix |> glob
     length(files) > 0
 end
 
