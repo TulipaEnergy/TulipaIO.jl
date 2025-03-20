@@ -12,10 +12,17 @@ _read_opts = pairs((header = true,))
 to_posix(path::String) = replace(path, "\\" => "/")
 
 function check_file(source::String)
-    # NOTE: this is necessary since `glob` accepts only POSIX paths
-    # regardless of platform
-    files = source |> relpath |> to_posix |> glob
-    length(files) > 0
+    # NOTE: Check if `pwd()` and `source` are on the same drive
+    # (relevant only on Windows), if they are not on the same drive,
+    # skip call to `relpath` since it returns a path without the drive
+    # letter, breaking the path.  `same_root` will always be true on
+    # *nix since all filesystems are mounted under "/".
+    same_root = mapreduce(splitdrive, ((d1, p1), (d2, p2)) -> d1 == d2, [source, pwd()])
+
+    # NOTE: `to_posix` is necessary since `glob` accepts only POSIX
+    # paths regardless of platform
+    nfiles = (same_root ? source |> relpath : source) |> to_posix |> glob |> length
+    nfiles > 0
 end
 
 function check_tbl(con::DB, source::String)
