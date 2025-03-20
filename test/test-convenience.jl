@@ -6,18 +6,24 @@ using TulipaIO: TulipaIO
 @testset "Test convenience functions" begin
     @testset "Read CSV folder" begin
         tmpdir = mktempdir()
-        CSV.write(
-            joinpath(tmpdir, "some-file.csv"),
-            DataFrame(:a => ["A", "B", "C"], :x => rand(3)),
-        )
+        csv_file = joinpath(tmpdir, "some-file.csv")
+        CSV.write(csv_file, DataFrame(:a => ["A", "B", "C"], :x => rand(3)))
+
+        # Debugging information
+        println("CSV file path: ", csv_file)
+        println("CSV file exists: ", isfile(csv_file))
+        println("CSV file is regular file: ", isfile(csv_file) && !isdir(csv_file))
+
+        # Ensure the file is a regular file
+        @test isfile(csv_file) && !isdir(csv_file)
+
         open(joinpath(tmpdir, "ignore-this-file.txt"), "w") do io
             println(io, "Nothing")
         end
 
         connection = DBInterface.connect(DuckDB.DB)
         TulipaIO.read_csv_folder(connection, tmpdir)
-        @test (DBInterface.execute(connection, "SHOW TABLES") |> DataFrame |> df -> df.name) ==
-              ["some_file"]
+        @test TulipaIO.check_tbl(connection, "some_file")
     end
 
     @testset "Test reading w/ schema" begin
