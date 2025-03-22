@@ -33,7 +33,6 @@ end
         end
     end
 
-    # redundant for the current implementation, needed when we support globs
     @testset "check_file(source)" begin
         csv_path = joinpath(DATA, "Norse", "assets*.csv")
         @test TulipaIO.check_file(csv_path)
