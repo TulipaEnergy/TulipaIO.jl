@@ -9,7 +9,7 @@ sprintf(fmt::String, args...) = format(Format(fmt), args...)
 # quote literals appropriately for SQL
 fmt_quote(item) = "$(item)"
 fmt_quote(item::Union{AbstractString, AbstractChar}) = "'$(item)'"
-fmt_quote(::Missing) = missing
+fmt_quote(::Union{Missing, Nothing}) = "NULL"
 
 function fmt_opts(source::String; opts...)
     _src = '?' in source ? "$source" : "'$(source)'"
