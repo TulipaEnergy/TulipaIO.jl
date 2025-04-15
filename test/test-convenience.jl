@@ -21,11 +21,11 @@ using TulipaIO: TulipaIO
     @testset "Test reading w/ schema" begin
         con = DBInterface.connect(DuckDB.DB)
         schemas = Dict(
-            "rep_periods_mapping" =>
+            "input.rep_periods_mapping" =>
                 Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE"),
         )
-        TulipaIO.read_csv_folder(con, "data/Norse"; schemas)
-        df_types = DuckDB.query(con, "DESCRIBE rep_periods_mapping") |> DataFrame
+        TulipaIO.read_csv_folder(con, "data/Norse"; schemas, database_schema = "input")
+        df_types = DuckDB.query(con, "DESCRIBE input.rep_periods_mapping") |> DataFrame
         @test df_types.column_name == ["period", "rep_period", "weight"]
         @test df_types.column_type == ["INTEGER", "VARCHAR", "DOUBLE"]
     end
