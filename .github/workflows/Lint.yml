@@ -46,6 +46,13 @@ jobs:
         name: Link checker
         runs-on: ubuntu-latest
         steps:
+            # Cache lychee results (e.g. to avoid hitting rate limits)
+            - name: Restore lychee cache
+              uses: actions/cache@v4
+              with:
+                  path: .lycheecache
+                  key: cache-lychee-${{ github.sha }}
+                  restore-keys: cache-lychee-
             - uses: actions/checkout@v4
 
             - name: Link Checker
@@ -53,3 +60,6 @@ jobs:
               uses: lycheeverse/lychee-action@v2
               with:
                   fail: true
+              env:
+                  # Increase the rate limit
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
