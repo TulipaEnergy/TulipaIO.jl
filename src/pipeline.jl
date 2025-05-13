@@ -71,15 +71,13 @@ function get_tbl_name(source::String, tmp::Bool)
     tmp ? "t_$(name)" : name
 end
 
-# TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
-
 function _create_tbl_impl(
     con::DB,
     query::String;
     name::String,
     tmp::Bool,
     show::Bool,
-    replace_if_exists::Bool = false,
+    replace_if_exists::Bool = true,
 )
     create_table_cmd =
         "CREATE" * (replace_if_exists ? " OR REPLACE" : "") * (tmp ? " TEMP" : "") * " TABLE"
@@ -95,7 +93,7 @@ end
         tmp::Bool = false,
         show::Bool = false,
         types = Dict(),
-        replace_if_exists = false,
+        replace_if_exists = true,
         opts...
     )
 
@@ -138,7 +136,7 @@ function create_tbl(
     tmp::Bool = false,
     show::Bool = false,
     types = Dict(),
-    replace_if_exists = false,
+    replace_if_exists = true,
     opts...,
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
@@ -215,7 +213,7 @@ function create_tbl(
     fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
-    replace_if_exists = false,
+    replace_if_exists = true,
     opts...,
 )
     if check_file(alt_source) && length(name) == 0
@@ -388,7 +386,7 @@ function create_tbl(
     where_::String = "",
     tmp::Bool = false,
     show::Bool = false,
-    replace_if_exists = false,
+    replace_if_exists = true,
     opts...,
 ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     if check_file(source) && length(name) == 0
