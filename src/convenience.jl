@@ -49,8 +49,9 @@ function read_csv_folder(
             types = schemas[table_name]
         end
 
+        table_name = "$table_name_prefix$table_name$table_name_suffix"
         if length(database_schema) > 0
-            table_name = "$database_schema.$table_name_prefix$table_name$table_name_suffix"
+            table_name = "$database_schema.$table_name"
         end
 
         create_tbl(
