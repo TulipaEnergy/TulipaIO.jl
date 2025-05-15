@@ -1,37 +1,66 @@
 export read_csv_folder, show_tables, get_table
 
 """
-    read_csv_folder(connection, folder)
+    read_csv_folder(connection, folder; kwargs...)
 
 Read all CSV files in the `folder` and create a table for each in the `connection`.
 
 ## Keywords arguments
 
+- `database_schema = ""`
 - `table_name_prefix = ""`
 - `table_name_suffix = ""`
 - `schemas = Dict()` Dictionary of dictionaries, where the inner
   dictionary is a table schema (partial schemas are allowed).  The
-  keys of the outer dictionary are the table names
+  keys of the outer dictionary are the table names (without prefix and suffix)
 - kwargs... are keyword options that are passed on to DuckDB's `read_csv` function
 """
 function read_csv_folder(
     connection,
     folder;
+    database_schema = "",
     table_name_prefix = "",
     table_name_suffix = "",
+    replace_if_exists = true,
+    require_schema = false,
     schemas = Dict(),
     kwargs...,
 )
+    if length(database_schema) > 0
+        DBInterface.execute(connection, "CREATE SCHEMA IF NOT EXISTS $database_schema")
+    end
     for filename in readdir(folder)
         if !endswith(".csv")(filename)
             continue
         end
         table_name, _ = splitext(filename)
         table_name = replace(table_name, "-" => "_")
-        table_name = table_name_prefix * table_name * table_name_suffix
 
-        types = get(schemas, table_name, Dict())
-        create_tbl(connection, joinpath(folder, filename); name = table_name, types, kwargs...)
+        types = Dict()
+        if !haskey(schemas, table_name)
+            if require_schema
+                error(
+                    "No `$table_name` in given `schemas`. Use `require_schema = false` if you want to skip it.",
+                )
+            else
+                @warn "No `$table_name` in given `schemas`. Ignoring because `require_schema = false`."
+            end
+        else
+            types = schemas[table_name]
+        end
+
+        if length(database_schema) > 0
+            table_name = "$database_schema.$table_name_prefix$table_name$table_name_suffix"
+        end
+
+        create_tbl(
+            connection,
+            joinpath(folder, filename);
+            name = table_name,
+            types,
+            replace_if_exists,
+            kwargs...,
+        )
     end
 
     return connection

@@ -71,10 +71,16 @@ function get_tbl_name(source::String, tmp::Bool)
     tmp ? "t_$(name)" : name
 end
 
-# TODO: support "CREATE OR REPLACE" & "IF NOT EXISTS" for all create_* functions
-
-function _create_tbl_impl(con::DB, query::String; name::String, tmp::Bool, show::Bool)
-    create_table_cmd = "CREATE" * (tmp ? " TEMP" : "") * " TABLE"
+function _create_tbl_impl(
+    con::DB,
+    query::String;
+    name::String,
+    tmp::Bool,
+    show::Bool,
+    replace_if_exists::Bool = true,
+)
+    create_table_cmd =
+        "CREATE" * (replace_if_exists ? " OR REPLACE" : "") * (tmp ? " TEMP" : "") * " TABLE"
     DBInterface.execute(con, "$create_table_cmd $name AS $query")
     return show ? DF.DataFrame(DBInterface.execute(con, "SELECT * FROM $name")) : name
 end
@@ -87,6 +93,7 @@ end
         tmp::Bool = false,
         show::Bool = false,
         types = Dict(),
+        replace_if_exists = true,
         opts...
     )
 
@@ -105,6 +112,10 @@ deleted when you close the connection with DuckDB.
 
 When `show` is `false`, and `name` was not provided, a table name is
 automatically generated from the basename of the filename.
+
+If `replace_if_exists` is `true`, then the `CREATE OR REPLACE` is used instead
+of just `CREATE`, allowing DuckDB to replace the table, if a table with the
+same name already exists.
 
 To enforce data types of a column, you can provide the keyword
 argument `types` as a dictionary with column names as keys, and
@@ -125,6 +136,7 @@ function create_tbl(
     tmp::Bool = false,
     show::Bool = false,
     types = Dict(),
+    replace_if_exists = true,
     opts...,
 )
     check_file(source) ? true : throw(FileNotFoundError(source))
@@ -138,7 +150,7 @@ function create_tbl(
     end
     query = fmt_select(fmt_read(source; _read_opts..., kwargs..., opts...))
 
-    return _create_tbl_impl(con, query; name, tmp, show)
+    return _create_tbl_impl(con, query; name, tmp, show, replace_if_exists)
 end
 
 """
@@ -201,6 +213,7 @@ function create_tbl(
     fill_values::Union{Missing, Dict} = missing,
     tmp::Bool = false,
     show::Bool = false,
+    replace_if_exists = true,
     opts...,
 )
     if check_file(alt_source) && length(name) == 0
@@ -210,7 +223,7 @@ function create_tbl(
     sources = [fmt_source(con, src; opts...) for src in (base_source, alt_source)]
     query = fmt_join(sources...; on = on, cols = cols, fill = fill, fill_values = fill_values)
 
-    return _create_tbl_impl(con, query; name, tmp, show)
+    return _create_tbl_impl(con, query; name, tmp, show, replace_if_exists)
 end
 
 function _get_index(con::DB, source::String, on::Symbol)
@@ -373,6 +386,7 @@ function create_tbl(
     where_::String = "",
     tmp::Bool = false,
     show::Bool = false,
+    replace_if_exists = true,
     opts...,
 ) where {K <: Union{String, Symbol}, V <: Union{Bool, Real, String, Any, Nothing}}
     if check_file(source) && length(name) == 0
@@ -386,7 +400,7 @@ function create_tbl(
     end
 
     query = fmt_join(source, "($subquery)"; on = [on], cols = [keys(cols)...], fill = true)
-    return _create_tbl_impl(con, query; name = name, tmp = tmp, show = show)
+    return _create_tbl_impl(con, query; name, tmp, show, replace_if_exists)
 end
 
 # function create_tbl(

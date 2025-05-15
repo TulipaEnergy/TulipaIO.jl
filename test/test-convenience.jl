@@ -16,6 +16,20 @@ using TulipaIO: TulipaIO
         connection = DBInterface.connect(DuckDB.DB)
         TulipaIO.read_csv_folder(connection, tmpdir)
         @test TulipaIO.check_tbl(connection, "some_file")
+
+        @testset "Running twice works" begin
+            # No throwing an error is success
+            TulipaIO.read_csv_folder(connection, tmpdir)
+            @test TulipaIO.check_tbl(connection, "some_file")
+        end
+
+        @testset "Failure to find schema" begin
+            @test_throws ErrorException TulipaIO.read_csv_folder(
+                connection,
+                tmpdir,
+                require_schema = true,
+            )
+        end
     end
 
     @testset "Test reading w/ schema" begin
@@ -24,8 +38,8 @@ using TulipaIO: TulipaIO
             "rep_periods_mapping" =>
                 Dict(:period => "INT", :rep_period => "VARCHAR", :weight => "DOUBLE"),
         )
-        TulipaIO.read_csv_folder(con, "data/Norse"; schemas)
-        df_types = DuckDB.query(con, "DESCRIBE rep_periods_mapping") |> DataFrame
+        TulipaIO.read_csv_folder(con, "data/Norse"; schemas, database_schema = "input")
+        df_types = DuckDB.query(con, "DESCRIBE input.rep_periods_mapping") |> DataFrame
         @test df_types.column_name == ["period", "rep_period", "weight"]
         @test df_types.column_type == ["INTEGER", "VARCHAR", "DOUBLE"]
     end
