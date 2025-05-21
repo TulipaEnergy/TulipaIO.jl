@@ -43,7 +43,7 @@ function read_csv_folder(
                     "No `$table_name` in given `schemas`. Use `require_schema = false` if you want to skip it.",
                 )
             else
-                @warn "No `$table_name` in given `schemas`. Ignoring because `require_schema = false`."
+                @debug "No `$table_name` in given `schemas`. Ignoring because `require_schema = false`."
             end
         else
             types = schemas[table_name]
