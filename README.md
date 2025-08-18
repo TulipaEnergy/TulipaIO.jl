@@ -38,7 +38,7 @@ If you use TulipaIO.jl in your work, please cite using the reference given in [C
 
 ## Contributing
 
-If you want to make contributions of any kind, please first take a look into TulipaEnergyModel's [contributing guide](https://github.com/TulipaEnergy/TulipaEnergyModel.jl/blob/main/docs/src/90-contributing.md) and [developer documentation](https://github.com/TulipaEnergy/TulipaEnergyModel.jl/blob/main/docs/src/91-developer.md).
+If you want to make contributions of any kind, please first take a look into TulipaEnergyModel's [contributing guide](https://tulipaenergy.github.io/TulipaEnergyModel.jl/stable/90-contributing/90-contributing/) and [developer documentation](https://tulipaenergy.github.io/TulipaEnergyModel.jl/stable/90-contributing/91-developer/).
 Furthermore, you can read specific information for this package at the [TulipaIO's developer documentation](README.dev.md).
 
 ---
