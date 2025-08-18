@@ -1,6 +1,6 @@
 # Developer documentation
 
-You can find more general developer documentation at [TulipaEnergyModel's README.dev.md](https://github.com/TulipaEnergy/TulipaEnergyModel.jl/blob/main/docs/src/91-developer.md).
+You can find more general developer documentation at [TulipaEnergyModel's README.dev.md](https://tulipaenergy.github.io/TulipaEnergyModel.jl/stable/90-contributing/91-developer/).
 Here you will find more specific information.
 
 ## Notes on writing tests
