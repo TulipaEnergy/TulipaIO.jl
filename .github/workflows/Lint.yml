@@ -60,6 +60,8 @@ jobs:
               uses: lycheeverse/lychee-action@v2
               with:
                   fail: true
+                  args: >
+                      --exclude https://blog.esciencecenter.nl/the-utopic-git-history-d44b81c09593
               env:
                   # Increase the rate limit
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
