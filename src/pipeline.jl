@@ -12,6 +12,10 @@ _read_opts = pairs((header = true,))
 to_posix(path::String) = replace(path, "\\" => "/")
 
 function check_file(source::String)
+    # Try exact path first (faster path)
+    isfile(source) && return true
+
+    # Fallback to glob pattern matching
     # NOTE: Check if `pwd()` and `source` are on the same drive
     # (relevant only on Windows), if they are not on the same drive,
     # skip call to `relpath` since it returns a path without the drive
