@@ -1,6 +1,6 @@
 name = "TulipaIO"
 uuid = "7b3808b7-0819-42d4-885c-978ba173db11"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Suvayu Ali <fatkasuvayu+linux@gmail.com> and contributors"]
 
 [deps]
