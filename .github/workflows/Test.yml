@@ -25,10 +25,11 @@ jobs:
                 version:
                     - "lts"
                     - "1"
-                os:
-                    - ubuntu-latest
-                    - macOS-latest
-                    - windows-latest
-                arch:
-                    - x64
+                include:
+                    - os: ubuntu-latest
+                      arch: x64
+                    - os: ubuntu-latest
+                      arch: x64
+                    - os: macOS-latest
+                      arch: aarch64
                 allow_failure: [false]
