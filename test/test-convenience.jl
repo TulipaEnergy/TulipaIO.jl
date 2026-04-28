@@ -52,7 +52,7 @@ using TulipaIO: TulipaIO
         )
         TulipaIO.read_csv_folder(
             con,
-            "data/Norse";
+            joinpath(DATA, "Norse");
             schemas,
             database_schema = "input",
             table_name_prefix = prefix,
@@ -66,7 +66,11 @@ using TulipaIO: TulipaIO
 
     @testset "Test show_tables and get_table" begin
         connection = DBInterface.connect(DuckDB.DB)
-        TulipaIO.create_tbl(connection, "data/Norse/assets-data.csv"; name = "my_table")
+        TulipaIO.create_tbl(
+            connection,
+            joinpath(DATA, "Norse", "assets-data.csv");
+            name = "my_table",
+        )
         @test TulipaIO.show_tables(connection).name == ["my_table"]
         @test "Asgard_Battery" in TulipaIO.get_table(connection, "my_table").name
     end

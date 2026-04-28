@@ -337,7 +337,7 @@ function create_tbl(
             Iterators.flatten |>
             collect |>
             x -> reshape(x, 2, :) |> permutedims
-        msg *= pretty_table(String, data; header = ["index", "value"])
+        msg *= pretty_table(String, data; column_labels = ["index", "value"])
         throw(DimensionMismatch(msg))
     end
     col_names = keys(cols) |> collect

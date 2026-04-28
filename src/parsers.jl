@@ -84,7 +84,7 @@ function merge(args...; names = [])
         # filter fields with errors for all arguments
         data = map(t -> map(f -> getfield(t, f), errs), args) |> collect |> x -> hcat(errs, x...)
         hdr = ["fields", ((length(names) == 0) ? (1:length(args)) : names)...]
-        msg *= pretty_table(String, data; header = hdr)
+        msg *= pretty_table(String, data; column_labels = hdr)
         error(msg)
     end
     res
